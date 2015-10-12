@@ -76,7 +76,7 @@ On one hand we have batch methods like gradient descent, L-BFGS, and conjugate g
 their well-studied and theoretically guaranteed faster convergence rates, while on the other,
 we have approximations like stochastic gradient descent (SGD), with their poorer
 convergence rates. But surprisingly, it turns out
-that SGD is the clear winner (<a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf">[1]</a><a href="http://arxiv.org/abs/1206.5533">[2]</a><a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[3]</a>), performing miraculously well 
+that SGD is the clear winner (<a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf">[2]</a><a href="http://arxiv.org/abs/1206.5533">[3]</a><a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[1]</a>), performing miraculously well 
 in large neural networks and on massive data. Now it so happened that I recently got a little tired
 of watching my <a href="https://taku910.github.io/crfpp/">CRF++</a> program, which uses fast LBFGS optimization and has been a constant
 loyal companion in all my tagging expeditions over the past year, doggedly crunching bits 
@@ -145,9 +145,9 @@ dataset for good measure (call it <em>other</em>). I used a learning rate of 0.0
 And I also printed out the current error and cost statistics by sampling every 5 epochs, 
 to make sure that optimization was proceeding correctly. The numbers quoted below are testing <strong>accuracies</strong> on the test sets of the corresponding
 datasets (using the standard <a href="http://www.cnts.ua.ac.be/conll2000/chunking/conlleval.txt">conlleval</a> script), 
-and <strong>the running time is noted in seconds in brackets</strong>. The original CRF++ is running LBFGS in 8 threads, while SGD is single-threaded.</p>
+and <strong>the running time is noted in seconds in parantheses</strong>. The original CRF++ is running LBFGS in 8 threads, while SGD is single-threaded.</p>
 
-<table>
+<table rules="groups">
   <thead>
     <tr>
       <th>Dataset/<em>Epochs</em></th>
@@ -226,7 +226,7 @@ minima. Ideally, it should be high in the beginning, where we want the optimizat
 approaching zero as we get closer to the minima, so reduce severe fluctuations in an already stable weight. Theoretically, the decreasing learning rate <script type="math/tex">\gamma_t</script>
 needs to follow the following properties for convergence: <script type="math/tex">% <![CDATA[
 \sum_t \gamma_t  = \infty, \sum_t \gamma_t^2 < \infty %]]></script>. In practice, usually a learning rate of the
-form <script type="math/tex">\gamma_t = \gamma_0 (1+\gamma_0\lambda t)^{-1}</script> works well<a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[3]</a>, where <script type="math/tex">\gamma_0</script> is the initial <script type="math/tex">\gamma</script> at time <script type="math/tex">t=0</script> and <script type="math/tex">\lambda</script> is the regularization 
+form <script type="math/tex">\gamma_t = \gamma_0 (1+\gamma_0\lambda t)^{-1}</script> works well<a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[1]</a>, where <script type="math/tex">\gamma_0</script> is the initial <script type="math/tex">\gamma</script> at time <script type="math/tex">t=0</script> and <script type="math/tex">\lambda</script> is the regularization 
 parameter we have been using. In the experiments quoted above, I used a single <script type="math/tex">\gamma_0 = 0.01</script> for all the datasets. This is not a very good idea, since
 each dataset is different, each cost space disparate, with individual countours and shapes, which a second order method like LBFGS can leverage since it
 approximates that information in the quasi-Hessian it calculates on each iteration: but SGD would be at a loss, with an uninspired learning rate leading to
@@ -235,10 +235,10 @@ picking up the model that lead to the lowest validation error? That’s topping,
 running multiple instances of the routine on different machines parallely. So what do we do? Well, let’s approximate: SGD approximates the gradient; we can 
 approximate multiple complete runs with different <script type="math/tex">\gamma</script>s, by running multiple single epochs with different <script type="math/tex">\gamma</script>s on a sample of the whole dataset, 
 and picking up the best <script type="math/tex">\gamma</script> from those runs (which can be efficiently done with a binary search, half the next <script type="math/tex">\gamma</script> to try if the present one is too
-small, double it if it’s the contrary, which is the approach followed by <a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[3]</a> – see their sgd <a href="https://github.com/npinto/bottou-sgd/blob/master/crf/crfsgd.cpp#L1562">code</a>). That’s what I did, and here are the updated
+small, double it if it’s the contrary, which is the approach followed by <a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[1]</a> – see their sgd <a href="https://github.com/npinto/bottou-sgd/blob/master/crf/crfsgd.cpp#L1562">code</a>). That’s what I did, and here are the updated
 results for the two big datasets:</p>
 
-<table>
+<table rules="groups">
   <thead>
     <tr>
       <th style="text-align: left">Dataset/<em>Epoch</em></th>
@@ -306,7 +306,7 @@ Furthermore, they also claim that even if collisions occured, they introduce ins
 dataset, span <script type="math/tex">n</script> threads, each of which looks at <script type="math/tex">\frac{|dataset|}{n}</script> examples and does SGD individually on the weight vector, taking care to update only those components whose gradient changed. 
 On each iteration, I rescale the <script type="math/tex">\gamma</script> before employing the threads. Here are the results:</p>
 
-<table>
+<table rules="groups">
   <thead>
     <tr>
       <th style="text-align: left">Dataset/<em>Epoch</em></th>
@@ -330,6 +330,50 @@ On each iteration, I rescale the <script type="math/tex">\gamma</script> before 
     </tr>
   </tbody>
 </table>
+
+<p>The accuracy is almost the same as SGD, while it takes lesser time. There are some glitches though: the cost function zigzags a bit towards the end when run for 100 iterations, for both the datasets,
+which leads to a slight drop in accuracy on <em>conll2000</em> dataset. Remember that I am rescaling <script type="math/tex">\gamma</script> only at the beginning of the iteration, and it remains constant throughout when the threads are 
+crunching data. I guess I should use a better schedule for rate scaling. Or look into Hogwild literature to figure it out. May be later: for now, there is still one more thing to try.</p>
+
+<h1 id="colluding-with-the-red-queen">Colluding with the Red Queen</h1>
+<p>Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a <script type="math/tex">w_0</script> close enough to <script type="math/tex">w_{min}</script>: well, most of the time, that’s not really the case. 
+But as we just saw, SGD does a really good job of bringing <script type="math/tex">w</script> close to <script type="math/tex">w_{min}</script> in a really short time, though it loiters around once it gets there and takes a long long time to reach 
+the absolute <script type="math/tex">w_{min}</script>. So, why not combine them both: run SGD in the beginning, to quickly get the <script type="math/tex">w</script> to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
+of both worlds. I have seen a few algorithms doing that before, specifically <a href="http://hunch.net/~vw/">Vowpal Wabbit</a> comes to mind. So I set in a routine in CRF++ which can run one of the SGD versions first for a 
+specified number of epochs, and then switches over to LBFGS till convergence or <em>maxiter</em> number of steps.</p>
+
+<table rules="groups">
+  <thead>
+    <tr>
+      <th style="text-align: left">Dataset/<em>Epoch</em></th>
+      <th style="text-align: center"><em>5(SGD) + LBFGS</em></th>
+      <th style="text-align: right"><em>10(SGD) + LBFGS</em></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><em>conll2000</em></td>
+      <td style="text-align: center"><strong>95.88</strong>(3455.75)</td>
+      <td style="text-align: right"><strong>95.89</strong>(3582.60)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><em>other</em></td>
+      <td style="text-align: center"><strong>69.50</strong>(4685.43)</td>
+      <td style="text-align: right"><strong>69.19</strong>(4735.46)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>So we get almost the same numbers as compared to pure LBFGS as far as accuracy is concerned, but we gain significantly in time, ~600s in each case. If we just look at the number of iterations,
+CRF++ took 220 and 1259 full iterations through <em>conll2000</em> and <em>other</em> respectively, when we start with <script type="math/tex">w_0=\mathbf{0}</script>, which came down to 159 and 1067 when we get a modified <script type="math/tex">w_0</script> 
+found by running 5 epochs of SGD (Hogwild).</p>
+
+<h1 id="references">REFERENCES</h1>
+
+<pre><code>  1. Stochastic Gradient Descent Tricks, Bottou L
+  2. Efficient BackProp, LeCun Y, Bottou L, Muller KR
+  3. Practical recommendations for gradient-based training of deep architectures, Bengio Y
+</code></pre>
 
 
   </article>

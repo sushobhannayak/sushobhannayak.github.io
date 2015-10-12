@@ -16,7 +16,7 @@ On one hand we have batch methods like gradient descent, L-BFGS, and conjugate g
 their well-studied and theoretically guaranteed faster convergence rates, while on the other,
 we have approximations like stochastic gradient descent (SGD), with their poorer
 convergence rates. But surprisingly, it turns out
-that SGD is the clear winner ([[1]][lecun][[2]][bengio][[3]][botou]), performing miraculously well 
+that SGD is the clear winner ([[2]][lecun][[3]][bengio][[1]][botou]), performing miraculously well 
 in large neural networks and on massive data. Now it so happened that I recently got a little tired
 of watching my [CRF++][crfpp] program, which uses fast LBFGS optimization and has been a constant
 loyal companion in all my tagging expeditions over the past year, doggedly crunching bits 
@@ -91,7 +91,7 @@ dataset for good measure (call it *other*). I used a learning rate of 0.01, and 
 And I also printed out the current error and cost statistics by sampling every 5 epochs, 
 to make sure that optimization was proceeding correctly. The numbers quoted below are testing **accuracies** on the test sets of the corresponding
 datasets (using the standard [conlleval][conlleval] script), 
-and **the running time is noted in seconds in brackets**. The original CRF++ is running LBFGS in 8 threads, while SGD is single-threaded.
+and **the running time is noted in seconds in parantheses**. The original CRF++ is running LBFGS in 8 threads, while SGD is single-threaded.
 
 | Dataset/*Epochs*|*5(LBFGS)*|*10(LBFGS)*|*100(LBFGS)*| *To Conv(LBFGS)* | *5(SGD)*|*10(SGD)*| *100(SGD)* |
 | ------------- |:-------------:| :-----:|:-----:|:-----:|:-----:|:---------:|:-------:|
@@ -99,6 +99,7 @@ and **the running time is noted in seconds in brackets**. The original CRF++ is 
 |*conll2000*| **87.35**(87.34) | **92.77**(186.35) | **95.76**(1846.19) |**95.88**(4044.17)| **95.54**(416.18) | **95.78**(834.71) |**95.99**(8152.78)
 |*chunking* | **86.01**(0.33) | **89.23**(0.63) | **89.85**(2.78) | **89.85**(2.78) | **85.89**(0.32) | **87.67**(0.64) | **89.91**(5.84)
 |*other*| **36.88**(19.55)|**42.25**(39.05)|**68.41**(413.30)|**69.23**(5289.52)| **53.89**(108.48) | **50.09**(217.85)|**69.44**(2137.49)
+{: rules="groups"}
 
 Each epoch is one iteration through the dataset. The numbers above track our discussion fabulously. SGD gets to a pretty good test accuracy after
 just 5 epochs on both datasets, while LBFGS perspires on for 10 to 100 iterations, the difference being more marked as we 
@@ -120,7 +121,7 @@ aiming for the sky on the next iteration. Make it too small, and it can't take a
 minima. Ideally, it should be high in the beginning, where we want the optimization routine to explore more and take large noisy steps, and gradually come down,
 approaching zero as we get closer to the minima, so reduce severe fluctuations in an already stable weight. Theoretically, the decreasing learning rate $$\gamma_t$$
 needs to follow the following properties for convergence: $$\sum_t \gamma_t  = \infty, \sum_t \gamma_t^2 < \infty$$. In practice, usually a learning rate of the
-form $$\gamma_t = \gamma_0 (1+\gamma_0\lambda t)^{-1}$$ works well[[3]][botou], where $$\gamma_0$$ is the initial $$\gamma$$ at time $$t=0$$ and $$\lambda$$ is the regularization 
+form $$\gamma_t = \gamma_0 (1+\gamma_0\lambda t)^{-1}$$ works well[[1]][botou], where $$\gamma_0$$ is the initial $$\gamma$$ at time $$t=0$$ and $$\lambda$$ is the regularization 
 parameter we have been using. In the experiments quoted above, I used a single $$\gamma_0 = 0.01$$ for all the datasets. This is not a very good idea, since
 each dataset is different, each cost space disparate, with individual countours and shapes, which a second order method like LBFGS can leverage since it
 approximates that information in the quasi-Hessian it calculates on each iteration: but SGD would be at a loss, with an uninspired learning rate leading to
@@ -129,13 +130,14 @@ picking up the model that lead to the lowest validation error? That's topping, e
 running multiple instances of the routine on different machines parallely. So what do we do? Well, let's approximate: SGD approximates the gradient; we can 
 approximate multiple complete runs with different $$\gamma$$s, by running multiple single epochs with different $$\gamma$$s on a sample of the whole dataset, 
 and picking up the best $$\gamma$$ from those runs (which can be efficiently done with a binary search, half the next $$\gamma$$ to try if the present one is too
-small, double it if it's the contrary, which is the approach followed by [[3]][botou] -- see their sgd [code][botou-sgd]). That's what I did, and here are the updated
+small, double it if it's the contrary, which is the approach followed by [[1]][botou] -- see their sgd [code][botou-sgd]). That's what I did, and here are the updated
 results for the two big datasets:
 
 |Dataset/*Epoch* |$$\gamma_0$$| *5(SGD)* | *10(SGD)* |
 |:----------------|:-------:|----------:|---------:|
 |*conll2000* | 0.05 | **95.84**(527.19) | **95.87**(949.94)|
 |*other* |0.00078|**60.58**(204.87) | **68.16**(274.75)|
+{: rules="groups"}
 
 Notice that these values converge much faster to the minimum compared to the previous run with an arbitrary learning rate, at the expense of running a few more epochs(10 to be specific).
 Since the previous $$\gamma_0$$($$0.01$$) for *conll2000* was pretty close to the optimal($$0.05$$), there is no glaring difference; but it's evident that we take larger steps in the 
@@ -186,13 +188,39 @@ On each iteration, I rescale the $$\gamma$$ before employing the threads. Here a
 |:----------------|:-------:|----------:|---------:|
 |*conll2000* | **95.79**(409.46) | **95.85**(735.29)|**95.82**(6472.88)
 |*other*| **62.30**(134.80) | **67.93**(215.03) | **70.84**(1692.06)
+{: rules="groups"}
+
+The accuracy is almost the same as SGD, while it takes lesser time. There are some glitches though: the cost function zigzags a bit towards the end when run for 100 iterations, for both the datasets,
+which leads to a slight drop in accuracy on *conll2000* dataset. Remember that I am rescaling $$\gamma$$ only at the beginning of the iteration, and it remains constant throughout when the threads are 
+crunching data. I guess I should use a better schedule for rate scaling. Or look into Hogwild literature to figure it out. May be later: for now, there is still one more thing to try.
+
+#Colluding with the Red Queen
+Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a $$w_0$$ close enough to $$w_{min}$$: well, most of the time, that's not really the case. 
+But as we just saw, SGD does a really good job of bringing $$w$$ close to $$w_{min}$$ in a really short time, though it loiters around once it gets there and takes a long long time to reach 
+the absolute $$w_{min}$$. So, why not combine them both: run SGD in the beginning, to quickly get the $$w$$ to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
+of both worlds. I have seen a few algorithms doing that before, specifically [Vowpal Wabbit][vw] comes to mind. So I set in a routine in CRF++ which can run one of the SGD versions first for a 
+specified number of epochs, and then switches over to LBFGS till convergence or *maxiter* number of steps. 
+
+|---
+|Dataset/*Epoch* | *5(SGD) + LBFGS* | *10(SGD) + LBFGS* |
+|:----------------|:-------:|----------:|---------:|
+|*conll2000*|**95.88**(3455.75) | **95.89**(3582.60)|
+|*other* | **69.50**(4685.43) | **69.19**(4735.46)|
+|---
+{: rules="groups"}
+
+So we get almost the same numbers as compared to pure LBFGS as far as accuracy is concerned, but we gain significantly in time, ~600s in each case. If we just look at the number of iterations,
+CRF++ took 220 and 1259 full iterations through *conll2000* and *other* respectively, when we start with $$w_0=\mathbf{0}$$, which came down to 159 and 1067 when we get a modified $$w_0$$ 
+found by running 5 epochs of SGD (Hogwild). 
 
 
 
+#REFERENCES
 
-
-
-
+	  1. Stochastic Gradient Descent Tricks, Bottou L
+	  2. Efficient BackProp, LeCun Y, Bottou L, Muller KR
+	  3. Practical recommendations for gradient-based training of deep architectures, Bengio Y
+	  
 
 
 [shewchuk-cg]:	    https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
@@ -206,3 +234,4 @@ On each iteration, I rescale the $$\gamma$$ before employing the threads. Here a
 [botou-sgd]:	    https://github.com/npinto/bottou-sgd/blob/master/crf/crfsgd.cpp#L1562
 [hogwild]:	    https://www.eecs.berkeley.edu/~brecht/papers/hogwildTR.pdf
 [conlleval]:	    http://www.cnts.ua.ac.be/conll2000/chunking/conlleval.txt
+[vw]: 		    http://hunch.net/~vw/
