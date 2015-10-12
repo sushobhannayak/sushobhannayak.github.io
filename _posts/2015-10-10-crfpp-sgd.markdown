@@ -108,7 +108,7 @@ seeing every example; so we are updating feature number of variables every time,
 tasks, it is 1679700 for *conll2000* dataset for example), we get to a decent region quite soon. This is the getting-a-quite-low-expected-risk($$E$$) 
 part. As we further increase the number of epochs, we however have limited further improvement, with we seemingly spending a lot of time 
 doing meagre improvements in accuracy (in both cases, improvement in accuracy is $$< 1\%$$ after initial 5 iterations), which is the 
-it-takes-too-late-to-get-to-the-absolute-minimum part; but fortunately, most of the time, 
+it-takes-too-late-to-get-to-the-absolute-minimum part<sup>1</sup>; but fortunately, most of the time, 
 the absolute minimum really doesn't matter -- we are pretty happy getting to a close enough vicinity of the minimum. But that doesn't seem to be much
 of a concern for this experiment, as SGD is in fact consistently out-performing LBFGS, and getting us to a better minima. One thing to notice though is 
 the drop in accuracy from 54% to 50% in the final dataset after running the algorithm for 5 more epochs. We will come to that next, and see how learning
@@ -253,7 +253,9 @@ Another thing I would like to do is getting the parallelized version improved. D
 	  2. Efficient BackProp, LeCun Y, Bottou L, Muller KR
 	  3. Practical recommendations for gradient-based training of deep architectures, Bengio Y
 	  
-
+<sup>1</sup> <sub>In reality, it's a more subtle point. The numbers I am quoting are actually test-set numbers, whereas the theory of convergence was based on empirical risk. So, SGD might have
+been just dallying around the empirical risk it got to after the initial 5 iterations, while LBFGS would have gone on pretty close to $$E_{n,min}$$, which can lead to overfitting. The lower
+accuracy numbers for LBFGS compared to SGD(100 epochs) might suggest so.</sub>
 
 [shewchuk-cg]:	    https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
 [aria-post]:	    http://aria42.com/blog/2014/12/understanding-lbfgs/

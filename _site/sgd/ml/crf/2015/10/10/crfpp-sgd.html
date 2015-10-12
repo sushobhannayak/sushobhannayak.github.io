@@ -212,7 +212,7 @@ tasks, it is 1679700 for <em>conll2000</em> dataset for example), we get to a de
 part. As we further increase the number of epochs, we however have limited further improvement, with we seemingly spending a lot of time 
 doing meagre improvements in accuracy (in both cases, improvement in accuracy is <script type="math/tex">% <![CDATA[
 < 1\% %]]></script> after initial 5 iterations), which is the 
-it-takes-too-late-to-get-to-the-absolute-minimum part; but fortunately, most of the time, 
+it-takes-too-late-to-get-to-the-absolute-minimum part<sup>1</sup>; but fortunately, most of the time, 
 the absolute minimum really doesn’t matter – we are pretty happy getting to a close enough vicinity of the minimum. But that doesn’t seem to be much
 of a concern for this experiment, as SGD is in fact consistently out-performing LBFGS, and getting us to a better minima. One thing to notice though is 
 the drop in accuracy from 54% to 50% in the final dataset after running the algorithm for 5 more epochs. We will come to that next, and see how learning
@@ -404,6 +404,10 @@ doing CRF tagging with SGD, you had better use <a href="https://github.com/npint
   2. Efficient BackProp, LeCun Y, Bottou L, Muller KR
   3. Practical recommendations for gradient-based training of deep architectures, Bengio Y
 </code></pre>
+
+<p><sup>1</sup> <sub>In reality, it’s a more subtle point. The numbers I am quoting are actually test-set numbers, whereas the theory of convergence was based on empirical risk. So, SGD might have
+been just dallying around the empirical risk it got to after the initial 5 iterations, while LBFGS would have gone on pretty close to <script type="math/tex">E_{n,min}</script>, which can lead to overfitting. The lower
+accuracy numbers for LBFGS compared to SGD(100 epochs) might suggest so.</sub></p>
 
 
   </article>
