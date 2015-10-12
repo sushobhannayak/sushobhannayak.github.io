@@ -28,7 +28,7 @@ using them as off-the-shelf black-boxes or squinty-eyed yawn-punctuated acrobati
 on a keyboard to cook up a 5-line matlab function to plot some graphs at 2 in the night to meet the
 next morning assignment deadline, with hardly any insight into their inner-workings or caveats. 
 This post delineates my attempts at integrating SGD and related methods with CRF++ and reports 
-the insights I gained thereof. The git repo can be found [here][git].
+the insights I gained thereof. You can access the code in my [Git repo][git].
 
 ##Down the rabbit hole
 Consider the usual supervised learning setup, where we have a set of training examples $$(x_i,y_i)$$
@@ -66,8 +66,8 @@ $$
 w_{t+1} = w_t - \gamma \big( \frac{\lambda}{n} w_t + L'(x_t, y_t, w_t)\big)
 $$
 
-So here's the question, if it's just an approximation of the gradient of $$E_n$$, how come it has faster convergence
-rate than GD (which works on the true empirical gradient) and works better on massive datasets? Well, it doesn't. Its 
+So here's the question: If it's just an approximation of the gradient of $$E_n$$, how come it has faster convergence
+rate than GD (which works on the true empirical gradient) on massive datasets? Well, it doesn't. Its 
 convergence speed is actually limited by the noisy approximation of the true gradient, and is asymptotically much
 slower than GD (it takes $$O(1/\rho)$$ time compared to $$O(n \log 1/\rho)$$ for GD and $$O(n\log \log 1/\rho)$$ for LBFGS 
 to reach within $$\rho$$ bound of $$E_{n,min}$$). However, what it does *really* well is to reach a predefined *expected
@@ -86,50 +86,50 @@ in the basin they were initialized in.
 #She drinks the potion of reality
 So I hacked the CRF++ codebase to set up an SGD routine, that shuffles the data on each epoch (one full iteration through the dataset),
 and updates the weights after seeing each example. I used the datasets provided with the original CRF++ suite, which are really small,
-with around 100 odd sentences in each, and threw in the 9000 sentences each from [conll2000 chunking dataset][conll-data] and a private
+with around 100 odd sentences in each, and threw in 9000 sentences each from [conll2000 chunking dataset][conll-data] and a private
 dataset for good measure (call it *other*). I used a learning rate of 0.01, and $$\lambda$$ of 10, and discarded features that occured less than 3 times. 
 And I also printed out the current error and cost statistics by sampling every 5 epochs, 
 to make sure that optimization was proceeding correctly. The numbers quoted below are testing **accuracies** on the test sets of the corresponding
-datasets (using the standard [conlleval][conlleval] script), 
+datasets (using the standard [conlleval script][conlleval]), 
 and **the running time is noted in seconds in parantheses**. The original CRF++ is running LBFGS in 8 threads, while SGD is single-threaded.
 
 | Dataset/*Epochs*|*5(LBFGS)*|*10(LBFGS)*|*100(LBFGS)*| *To Conv(LBFGS)* | *5(SGD)*|*10(SGD)*| *100(SGD)* |
 | ------------- |:-------------:| :-----:|:-----:|:-----:|:-----:|:---------:|:-------:|
 |*JapaneseNER*| **92.89**(1.18) | **93.04**(2.33) | **96.17**(14.20) | **96.17**(14.20) | **95.20**(1.50) | **95.84**(2.91) | **96.08**(28.82)|
-|*conll2000*| **87.35**(87.34) | **92.77**(186.35) | **95.76**(1846.19) |**95.88**(4044.17)| **95.54**(416.18) | **95.78**(834.71) |**95.99**(8152.78)
 |*chunking* | **86.01**(0.33) | **89.23**(0.63) | **89.85**(2.78) | **89.85**(2.78) | **85.89**(0.32) | **87.67**(0.64) | **89.91**(5.84)
+|*conll2000*| **87.35**(87.34) | **92.77**(186.35) | **95.76**(1846.19) |**95.88**(4044.17)| **95.54**(416.18) | **95.78**(834.71) |**95.99**(8152.78)
 |*other*| **36.88**(19.55)|**42.25**(39.05)|**68.41**(413.30)|**69.23**(5289.52)| **53.89**(108.48) | **50.09**(217.85)|**69.44**(2137.49)
 {: rules="groups"}
 
 Each epoch is one iteration through the dataset. The numbers above track our discussion fabulously. SGD gets to a pretty good test accuracy after
 just 5 epochs on both datasets, while LBFGS perspires on for 10 to 100 iterations, the difference being more marked as we 
 move to a larger dataset. Consequently, even though individual epochs take longer in SGD (they naturally will, since we are updating weights after
-seeing every example; so we are updating feature number of variables every time, and feature vector cardinality can be really huge in such 
-tasks, it is 1679700 for conll dataset for example), we get to a decent region quite soon. This is the getting a quite low expected risk
-$$E$$ part. As we further increase the number of epochs, we however have limited further improvement, with we seemingly spending a lot of time 
-doing a meagre improvement in accuracy (in both cases, improvement in accuracy is $$< 1\%$$ after initial 5 iterations), which is the 
+seeing every example; so we are updating feature number of variables every time, and the feature vector cardinality can be really huge in such 
+tasks, it is 1679700 for *conll2000* dataset for example), we get to a decent region quite soon. This is the getting-a-quite-low-expected-risk($$E$$) 
+part. As we further increase the number of epochs, we however have limited further improvement, with we seemingly spending a lot of time 
+doing meagre improvements in accuracy (in both cases, improvement in accuracy is $$< 1\%$$ after initial 5 iterations), which is the 
 it-takes-too-late-to-get-to-the-absolute-minimum part; but fortunately, most of the time, 
 the absolute minimum really doesn't matter -- we are pretty happy getting to a close enough vicinity of the minimum. But that doesn't seem to be much
 of a concern for this experiment, as SGD is in fact consistently out-performing LBFGS, and getting us to a better minima. One thing to notice though is 
 the drop in accuracy from 54% to 50% in the final dataset after running the algorithm for 5 more epochs. We will come to that next, and see how learning
 rate can either make or break your day.
 
-#Where is my cat
+#"Where is my cat"
 In SGD, since the estimation of the gradient is noisy, the learning rate $$\gamma$$ plays a really prominent role in convergence of the routine. 
 Make it too large, and you move the weight around irratically, bouncing it off the side of the basin, at times converging towards the bottom, and 
 aiming for the sky on the next iteration. Make it too small, and it can't take a big enough step, thus giving into traipsing around instead of homing in on the 
-minima. Ideally, it should be high in the beginning, where we want the optimization routine to explore more and take large noisy steps, and gradually come down,
-approaching zero as we get closer to the minima, so reduce severe fluctuations in an already stable weight. Theoretically, the decreasing learning rate $$\gamma_t$$
+minima. Ideally, it should be high in the beginning, where we want the optimization routine to explore more and take large noisy steps, and gradually deprecate,
+approaching zero as we get closer to the minima, to reduce severe fluctuations in an already stable weight. Theoretically, the depreciating learning rate $$\gamma_t$$
 needs to follow the following properties for convergence: $$\sum_t \gamma_t  = \infty, \sum_t \gamma_t^2 < \infty$$. In practice, usually a learning rate of the
 form $$\gamma_t = \gamma_0 (1+\gamma_0\lambda t)^{-1}$$ works well[[1]][botou], where $$\gamma_0$$ is the initial $$\gamma$$ at time $$t=0$$ and $$\lambda$$ is the regularization 
 parameter we have been using. In the experiments quoted above, I used a single $$\gamma_0 = 0.01$$ for all the datasets. This is not a very good idea, since
 each dataset is different, each cost space disparate, with individual countours and shapes, which a second order method like LBFGS can leverage since it
-approximates that information in the quasi-Hessian it calculates on each iteration: but SGD would be at a loss, with an uninspired learning rate leading to
-slow convergence or zig-zagging. So how do we decide on a good learning rate for each dataset? How about we SGD again and again changing $$\gamma$$ each time and 
-picking up the model that lead to the lowest validation error? That's topping, except when you are looking for a fast turn around rate, it essentially necessitates 
+approximates that information in the quasi-Hessian it calculates on each iteration; but SGD would be at a loss, with an uninspired learning rate leading to
+slow convergence or zig-zagging. So how do we decide on a good learning rate for each dataset? How about we run SGD again and again, changing $$\gamma$$ on each run, and 
+pick up the model that leads to the lowest validation error? That's topping, except when you are looking for a fast turn around rate, it essentially necessitates 
 running multiple instances of the routine on different machines parallely. So what do we do? Well, let's approximate: SGD approximates the gradient; we can 
 approximate multiple complete runs with different $$\gamma$$s, by running multiple single epochs with different $$\gamma$$s on a sample of the whole dataset, 
-and picking up the best $$\gamma$$ from those runs (which can be efficiently done with a binary search, half the next $$\gamma$$ to try if the present one is too
+and picking up the best $$\gamma$$ from those runs (which can be efficiently done with a binary search: halve the next $$\gamma$$ to try if the present one is too
 small, double it if it's the contrary, which is the approach followed by [[1]][botou] -- see their sgd [code][botou-sgd]). That's what I did, and here are the updated
 results for the two big datasets:
 
@@ -140,9 +140,9 @@ results for the two big datasets:
 {: rules="groups"}
 
 Notice that these values converge much faster to the minimum compared to the previous run with an arbitrary learning rate, at the expense of running a few more epochs(10 to be specific).
-Since the previous $$\gamma_0$$($$0.01$$) for *conll2000* was pretty close to the optimal($$0.05$$), there is no glaring difference; but it's evident that we take larger steps in the 
-latter that leads to a better weight vector for the same number of epochs. It's the opposite with *other*, where the former $$\gamma_0$$ of $$0.01$$ was significantly larger than
-the optimal value of $$0.00078$$; so I guess the weight updations zigzagged a lot around the valley, diverging at times, definitely between epochs 5 and 10, as evidenced by the 
+Since the previous $$\gamma_0$$($$0.01$$) for *conll2000* was pretty close to the optimal($$0.05$$), there is no glaring difference there; nevertheless, it's evident that we are taking larger steps
+with $$\gamma_0=0.5$$ which leads to a better weight vector for the same number of epochs. On the contrary, with *other*, where the former $$\gamma_0$$ of $$0.01$$ was significantly larger than
+the optimal value of $$0.00078$$, the weight updations zigzagged a lot around the valley, diverging at times, as evidenced by the 
 drop in accuracy on the test set from $$53\%$$ to $$50\%$$ after 5 and 10 iterations. The second round of runs, in strong contrast, gives significantly better numbers on the test set.
 In the output log of the program, we can clearly see the objective(**obj**) running haywire for the first rounds of tests:
 
@@ -166,22 +166,23 @@ epoch =27 weight = 22902.92107
 {% endhighlight %}
 
 Okay, so we started out trying to incorporate SGD routines into CRF++, to make it faster, and after bouncing around some theoretical and practical considerations and toiling a bit to get 
-our wayward learning rate home, it seems we are finally there. Time to bring out the hammock and sip some pina colada! Or is it?
+our wayward learning rate home, it seems we are finally there. Time to take out the hammock and sip some pina colada! Or would you rather have some tea instead?
 
 ##Welcome to the mad tea-party
 My laptop has 8 cpu cores. While one of them is madly spewing out gradients, the other seven are dozing off like the Dormouse. SGD is inherently sequential: even though it beats
-the LBFGS routine running on all 8 cores, wouldn't it be nicer still if we can get those idling Dormouses to partake in our tea-party? Wake up those lazy bums and pass each a cup of hot simmering tea:
-Alas! we have got just one tea-pot, and now the Dormouses are clawing at each other to get hold of it. In case the allegory got too far fetched, it was simply pointing out that parallelizing SGD
-is difficult, since the over-head involved with acquiring/releasing locks on the weight vector quickly nullifies any advantages of the fast routine. So what do we do? Time to go [Hogwild][hogwild] !
+the LBFGS routine running on all 8 cores, wouldn't it be nicer still if we can get those idling Dormouses(it's not Dormice, it's like Harrys and Dicks) to partake in our tea-party? 
+Wake up those lazy bums and pass each a cup of hot simmering tea:
+Alas! we have got just one tea-pot, and now the Dormouses are clawing at each other to get hold of it. In case the allegory went too far, it was simply pointing out that parallelizing SGD
+is difficult, since the overhead involved with acquiring/releasing locks on the weight vector promptly nullifies any advantages of the fast routine. So what do we do? Time to go [Hogwild][hogwild] !
 
 #The mad-hatter goes berserk
 How does Hogwild get aroud the locking debacle then? Simple: it goes mad (I was in half a mind to say 'we kill the batman'), disregards the access sequences and just updates the weight, without 
-caring whether it inadvertently over-wrote a simultaneous change by another thread. Here's the kicker: in most of the optimization problems, each individual example influences only a very small part 
+caring whether it inadvertently overwrote a simultaneous change by another thread. Here's the kicker: in most of the optimization problems, each individual example influences only a very small part 
 of the gradient vector, viz. only the indices whose corresponding features fired in the example, so that two random updations have a very meagre probability of colliding. The convergence analysis of
 Hogwild scheme hinges on this *sparsity* assumption. And it fits perfectly for CRFs used in tagging, as most of the features used are word or prefix/suffix features and each example 
-consequently fires features that correspond only to the words of the sentence, leaving the other numerous words in the vocabulary intact.
-Furthermore, they also claim that even if collisions occured, they introduce insignificant error into the computation. Just like in SGD, I shuffle the
-dataset, span $$n$$ threads, each of which looks at $$\frac{|dataset|}{n}$$ examples and does SGD individually on the weight vector, taking care to update only those components whose gradient changed. 
+consequently fires features that correspond only to the words of the sentence, leaving those corresponding to the other numerous words in the vocabulary intact.
+Furthermore, Hogwild also claims that even if collisions occured, they would introduce insignificant errors into the computation. Just like in SGD, I shuffle the
+dataset, spawn $$m$$ threads, each of which looks at $$\frac{|dataset|}{m}$$ examples and does SGD individually on the weight vector, taking care to update only those components whose gradient changed. 
 On each iteration, I rescale the $$\gamma$$ before employing the threads. Here are the results:
 
 |Dataset/*Epoch* | *5(SGD)* | *10(SGD)* | *100(SGD)* |
@@ -190,19 +191,19 @@ On each iteration, I rescale the $$\gamma$$ before employing the threads. Here a
 |*other*| **62.30**(134.80) | **67.93**(215.03) | **70.84**(1692.06)
 {: rules="groups"}
 
-The accuracy is almost the same as SGD, while it takes lesser time. There are some glitches though: the cost function zigzags a bit towards the end when run for 100 iterations, for both the datasets,
+The accuracy is almost the same as SGD, while it takes lesser time. There are some glitches though: The cost function zigzags a bit towards the end when run for 100 iterations, for both the datasets,
 which leads to a slight drop in accuracy on *conll2000* dataset. Remember that I am rescaling $$\gamma$$ only at the beginning of the iteration, and it remains constant throughout when the threads are 
-crunching data. I guess I should use a better schedule for rate scaling. Or look into Hogwild literature to figure it out. May be later: for now, there is still one more thing to try.
+crunching data. I guess I should use a better schedule for rate scaling. Or look into the Hogwild literature to figure something out. May be later: For now, there is still one more thing to try.
 
-#Colluding with the Red Queen
-Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a $$w_0$$ close enough to $$w_{min}$$: well, most of the time, that's not really the case. 
+#Colluding with the Queen of Hearts
+Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a $$w_0$$ close enough to $$w_{min}$$? Well, most of the time, that's not really the case. 
 But as we just saw, SGD does a really good job of bringing $$w$$ close to $$w_{min}$$ in a really short time, though it loiters around once it gets there and takes a long long time to reach 
-the absolute $$w_{min}$$. So, why not combine them both: run SGD in the beginning, to quickly get the $$w$$ to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
-of both worlds. I have seen a few algorithms doing that before, specifically [Vowpal Wabbit][vw] comes to mind. So I set in a routine in CRF++ which can run one of the SGD versions first for a 
-specified number of epochs, and then switches over to LBFGS till convergence or *maxiter* number of steps. 
+the absolute $$w_{min}$$. So, why not combine them both: Run SGD in the beginning, to quickly get the $$w$$ to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
+of both worlds. I have seen a few algorithms doing that before, specifically [Vowpal Wabbit][vw] comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
+specified number of epochs, and then switches over to LBFGS till convergence or *maxiter* number of steps. The following results are from a Hogwild assisted run:
 
 |---
-|Dataset/*Epoch* | *5(SGD) + LBFGS* | *10(SGD) + LBFGS* |
+|Dataset/*Epoch* | *5(SGD) + LBFGS* | *10(SGD) + LBFGS* | 
 |:----------------|:-------:|----------:|---------:|
 |*conll2000*|**95.88**(3455.75) | **95.89**(3582.60)|
 |*other* | **69.50**(4685.43) | **69.19**(4735.46)|
@@ -213,7 +214,38 @@ So we get almost the same numbers as compared to pure LBFGS as far as accuracy i
 CRF++ took 220 and 1259 full iterations through *conll2000* and *other* respectively, when we start with $$w_0=\mathbf{0}$$, which came down to 159 and 1067 when we get a modified $$w_0$$ 
 found by running 5 epochs of SGD (Hogwild). 
 
+##"Oh, I've had such a curious dream!"
+Well, I think it's time to wake up now. There are many other issues I haven't touched upon though. 
 
+For starters, there is the mini-batch gradient descent, which updates weights after seeing $$k$$ number
+of examples ($$k$$~20 for instance); the gradient estimate is less noisy, as we are estimating based on multiple instances instead of a single one, and our progress is quick, since we don't go through
+the whole dataset before updating weights, which is sort of like leveraging the advantages of both batch and stochastic gradient descent. As an added bonus, the gradient calculation can be vectorized
+which leads to a more efficient parallelized implementation, making it potentially faster than SGD. Though I coded up a routine in CRF++ for this, it's not an efficient implementation. Yet. 
+
+CRF++ also has routines for L1 optimization of LBFGS. I would love to surface the same functionality for SGD. L1 optimization for SGD has some issues though: it's inefficient to apply L1
+penalty to weights of all features and a naive application of L1 penalty doesn't always lead to a compact model, thanks to the noisy approximate gradients. You can read more about it [here][l1].
+It would be interesting to investigate those issues. 
+
+And then there is the issue of 'speed up through leveraging the sparsity of the training examples'. If we rearrange the SGD updation rule, it looks something like this:
+
+$$
+w_{t+1} = (1-\frac{\gamma\lambda}{n})w_t - \gamma L'(x_t, y_t, w_t)
+$$
+
+Now, since the training example $$x_t$$ is sparse and the $$L'(x_t, y_t, w_t)$$ part is non-zero only for non-zero coefficients in $$x_t$$, we are wasting time rescaling all the components of
+$$w_t$$. If we alternatively represent $$w_t$$ as $$sW_t$$, where $$s$$ is a scalar, the above update equation can be changed to this:
+
+$$
+s_{t+1} = (1-\frac{\gamma\lambda}{n})s_t, 
+W_{t+1} = W_t - \gamma L'(x_t, y_t, s_tW_t)/s_{t+1}
+$$
+
+where only those coefficients of $$W_t$$ for which $$x_t$$ has a non-zero component get updated. [Bottou's crf-sgd code][botou-sgd] employs this trick, and it's much much faster than what I have
+with CRF++. When I get time, I will delve deeper into the CRF++ gradient calculation routine and try to incorporate this bit of optimization. In the meanwhile, if you are only interested in 
+doing CRF tagging with SGD, you had better use [this][botou-sgd].
+
+Another thing I would like to do is getting the parallelized version improved. Delving deeper into Hogwild literature is one option: another is to try other parallelized implementations like 
+[this][agarwal] or [this][zinkevich], and compare the performance of synchronous and asynchronous updation. May be next time, when I take a peek through the looking glass!
 
 #REFERENCES
 
@@ -235,3 +267,6 @@ found by running 5 epochs of SGD (Hogwild).
 [hogwild]:	    https://www.eecs.berkeley.edu/~brecht/papers/hogwildTR.pdf
 [conlleval]:	    http://www.cnts.ua.ac.be/conll2000/chunking/conlleval.txt
 [vw]: 		    http://hunch.net/~vw/
+[agarwal]:	    http://arxiv.org/pdf/1104.5525.pdf
+[zinkevich]:	    http://www.research.rutgers.edu/~lihong/pub/Zinkevich11Parallelized.pdf
+[l1]: 		    http://www.aclweb.org/anthology/P09-1054

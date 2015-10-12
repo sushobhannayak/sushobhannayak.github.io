@@ -6,8 +6,8 @@
 </description>
     <link>http://yourdomain.com/</link>
     <atom:link href="http://yourdomain.com/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 12 Oct 2015 05:19:35 -0700</pubDate>
-    <lastBuildDate>Mon, 12 Oct 2015 05:19:35 -0700</lastBuildDate>
+    <pubDate>Mon, 12 Oct 2015 07:25:40 -0700</pubDate>
+    <lastBuildDate>Mon, 12 Oct 2015 07:25:40 -0700</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
     
       <item>
@@ -36,7 +36,7 @@ using them as off-the-shelf black-boxes or squinty-eyed yawn-punctuated acrobati
 on a keyboard to cook up a 5-line matlab function to plot some graphs at 2 in the night to meet the
 next morning assignment deadline, with hardly any insight into their inner-workings or caveats. 
 This post delineates my attempts at integrating SGD and related methods with CRF++ and reports 
-the insights I gained thereof. The git repo can be found &lt;a href=&quot;https://github.com/sushobhannayak/crfpp-extensions&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+the insights I gained thereof. You can access the code in my &lt;a href=&quot;https://github.com/sushobhannayak/crfpp-extensions&quot;&gt;Git repo&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h2 id=&quot;down-the-rabbit-hole&quot;&gt;Down the rabbit hole&lt;/h2&gt;
 &lt;p&gt;Consider the usual supervised learning setup, where we have a set of training examples &lt;script type=&quot;math/tex&quot;&gt;(x_i,y_i)&lt;/script&gt;
@@ -68,8 +68,8 @@ picked sample from the dataset, which leads to an updation rule like the followi
 
 &lt;script type=&quot;math/tex; mode=display&quot;&gt;w_{t+1} = w_t - \gamma \big( \frac{\lambda}{n} w_t + L&#39;(x_t, y_t, w_t)\big)&lt;/script&gt;
 
-&lt;p&gt;So here’s the question, if it’s just an approximation of the gradient of &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, how come it has faster convergence
-rate than GD (which works on the true empirical gradient) and works better on massive datasets? Well, it doesn’t. Its 
+&lt;p&gt;So here’s the question: If it’s just an approximation of the gradient of &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, how come it has faster convergence
+rate than GD (which works on the true empirical gradient) on massive datasets? Well, it doesn’t. Its 
 convergence speed is actually limited by the noisy approximation of the true gradient, and is asymptotically much
 slower than GD (it takes &lt;script type=&quot;math/tex&quot;&gt;O(1/\rho)&lt;/script&gt; time compared to &lt;script type=&quot;math/tex&quot;&gt;O(n \log 1/\rho)&lt;/script&gt; for GD and &lt;script type=&quot;math/tex&quot;&gt;O(n\log \log 1/\rho)&lt;/script&gt; for LBFGS 
 to reach within &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt; bound of &lt;script type=&quot;math/tex&quot;&gt;E_{n,min}&lt;/script&gt;). However, what it does &lt;em&gt;really&lt;/em&gt; well is to reach a predefined &lt;em&gt;expected
@@ -88,11 +88,11 @@ in the basin they were initialized in.&lt;/p&gt;
 &lt;h1 id=&quot;she-drinks-the-potion-of-reality&quot;&gt;She drinks the potion of reality&lt;/h1&gt;
 &lt;p&gt;So I hacked the CRF++ codebase to set up an SGD routine, that shuffles the data on each epoch (one full iteration through the dataset),
 and updates the weights after seeing each example. I used the datasets provided with the original CRF++ suite, which are really small,
-with around 100 odd sentences in each, and threw in the 9000 sentences each from &lt;a href=&quot;http://www.clips.uantwerpen.be/conll2000/chunking/&quot;&gt;conll2000 chunking dataset&lt;/a&gt; and a private
+with around 100 odd sentences in each, and threw in 9000 sentences each from &lt;a href=&quot;http://www.clips.uantwerpen.be/conll2000/chunking/&quot;&gt;conll2000 chunking dataset&lt;/a&gt; and a private
 dataset for good measure (call it &lt;em&gt;other&lt;/em&gt;). I used a learning rate of 0.01, and &lt;script type=&quot;math/tex&quot;&gt;\lambda&lt;/script&gt; of 10, and discarded features that occured less than 3 times. 
 And I also printed out the current error and cost statistics by sampling every 5 epochs, 
 to make sure that optimization was proceeding correctly. The numbers quoted below are testing &lt;strong&gt;accuracies&lt;/strong&gt; on the test sets of the corresponding
-datasets (using the standard &lt;a href=&quot;http://www.cnts.ua.ac.be/conll2000/chunking/conlleval.txt&quot;&gt;conlleval&lt;/a&gt; script), 
+datasets (using the standard &lt;a href=&quot;http://www.cnts.ua.ac.be/conll2000/chunking/conlleval.txt&quot;&gt;conlleval script&lt;/a&gt;), 
 and &lt;strong&gt;the running time is noted in seconds in parantheses&lt;/strong&gt;. The original CRF++ is running LBFGS in 8 threads, while SGD is single-threaded.&lt;/p&gt;
 
 &lt;table rules=&quot;groups&quot;&gt;
@@ -120,16 +120,6 @@ and &lt;strong&gt;the running time is noted in seconds in parantheses&lt;/strong
       &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;96.08&lt;/strong&gt;(28.82)&lt;/td&gt;
     &lt;/tr&gt;
     &lt;tr&gt;
-      &lt;td&gt;&lt;em&gt;conll2000&lt;/em&gt;&lt;/td&gt;
-      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;87.35&lt;/strong&gt;(87.34)&lt;/td&gt;
-      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;92.77&lt;/strong&gt;(186.35)&lt;/td&gt;
-      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.76&lt;/strong&gt;(1846.19)&lt;/td&gt;
-      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.88&lt;/strong&gt;(4044.17)&lt;/td&gt;
-      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.54&lt;/strong&gt;(416.18)&lt;/td&gt;
-      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.78&lt;/strong&gt;(834.71)&lt;/td&gt;
-      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.99&lt;/strong&gt;(8152.78)&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
       &lt;td&gt;&lt;em&gt;chunking&lt;/em&gt;&lt;/td&gt;
       &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;86.01&lt;/strong&gt;(0.33)&lt;/td&gt;
       &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;89.23&lt;/strong&gt;(0.63)&lt;/td&gt;
@@ -138,6 +128,16 @@ and &lt;strong&gt;the running time is noted in seconds in parantheses&lt;/strong
       &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;85.89&lt;/strong&gt;(0.32)&lt;/td&gt;
       &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;87.67&lt;/strong&gt;(0.64)&lt;/td&gt;
       &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;89.91&lt;/strong&gt;(5.84)&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;em&gt;conll2000&lt;/em&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;87.35&lt;/strong&gt;(87.34)&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;92.77&lt;/strong&gt;(186.35)&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.76&lt;/strong&gt;(1846.19)&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.88&lt;/strong&gt;(4044.17)&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.54&lt;/strong&gt;(416.18)&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.78&lt;/strong&gt;(834.71)&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;strong&gt;95.99&lt;/strong&gt;(8152.78)&lt;/td&gt;
     &lt;/tr&gt;
     &lt;tr&gt;
       &lt;td&gt;&lt;em&gt;other&lt;/em&gt;&lt;/td&gt;
@@ -155,10 +155,10 @@ and &lt;strong&gt;the running time is noted in seconds in parantheses&lt;/strong
 &lt;p&gt;Each epoch is one iteration through the dataset. The numbers above track our discussion fabulously. SGD gets to a pretty good test accuracy after
 just 5 epochs on both datasets, while LBFGS perspires on for 10 to 100 iterations, the difference being more marked as we 
 move to a larger dataset. Consequently, even though individual epochs take longer in SGD (they naturally will, since we are updating weights after
-seeing every example; so we are updating feature number of variables every time, and feature vector cardinality can be really huge in such 
-tasks, it is 1679700 for conll dataset for example), we get to a decent region quite soon. This is the getting a quite low expected risk
-&lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt; part. As we further increase the number of epochs, we however have limited further improvement, with we seemingly spending a lot of time 
-doing a meagre improvement in accuracy (in both cases, improvement in accuracy is &lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
+seeing every example; so we are updating feature number of variables every time, and the feature vector cardinality can be really huge in such 
+tasks, it is 1679700 for &lt;em&gt;conll2000&lt;/em&gt; dataset for example), we get to a decent region quite soon. This is the getting-a-quite-low-expected-risk(&lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt;) 
+part. As we further increase the number of epochs, we however have limited further improvement, with we seemingly spending a lot of time 
+doing meagre improvements in accuracy (in both cases, improvement in accuracy is &lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
 &lt; 1\% %]]&gt;&lt;/script&gt; after initial 5 iterations), which is the 
 it-takes-too-late-to-get-to-the-absolute-minimum part; but fortunately, most of the time, 
 the absolute minimum really doesn’t matter – we are pretty happy getting to a close enough vicinity of the minimum. But that doesn’t seem to be much
@@ -166,23 +166,23 @@ of a concern for this experiment, as SGD is in fact consistently out-performing 
 the drop in accuracy from 54% to 50% in the final dataset after running the algorithm for 5 more epochs. We will come to that next, and see how learning
 rate can either make or break your day.&lt;/p&gt;
 
-&lt;h1 id=&quot;where-is-my-cat&quot;&gt;Where is my cat&lt;/h1&gt;
+&lt;h1 id=&quot;where-is-my-cat&quot;&gt;“Where is my cat”&lt;/h1&gt;
 &lt;p&gt;In SGD, since the estimation of the gradient is noisy, the learning rate &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; plays a really prominent role in convergence of the routine. 
 Make it too large, and you move the weight around irratically, bouncing it off the side of the basin, at times converging towards the bottom, and 
 aiming for the sky on the next iteration. Make it too small, and it can’t take a big enough step, thus giving into traipsing around instead of homing in on the 
-minima. Ideally, it should be high in the beginning, where we want the optimization routine to explore more and take large noisy steps, and gradually come down,
-approaching zero as we get closer to the minima, so reduce severe fluctuations in an already stable weight. Theoretically, the decreasing learning rate &lt;script type=&quot;math/tex&quot;&gt;\gamma_t&lt;/script&gt;
+minima. Ideally, it should be high in the beginning, where we want the optimization routine to explore more and take large noisy steps, and gradually deprecate,
+approaching zero as we get closer to the minima, to reduce severe fluctuations in an already stable weight. Theoretically, the depreciating learning rate &lt;script type=&quot;math/tex&quot;&gt;\gamma_t&lt;/script&gt;
 needs to follow the following properties for convergence: &lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
 \sum_t \gamma_t  = \infty, \sum_t \gamma_t^2 &lt; \infty %]]&gt;&lt;/script&gt;. In practice, usually a learning rate of the
 form &lt;script type=&quot;math/tex&quot;&gt;\gamma_t = \gamma_0 (1+\gamma_0\lambda t)^{-1}&lt;/script&gt; works well&lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;[1]&lt;/a&gt;, where &lt;script type=&quot;math/tex&quot;&gt;\gamma_0&lt;/script&gt; is the initial &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; at time &lt;script type=&quot;math/tex&quot;&gt;t=0&lt;/script&gt; and &lt;script type=&quot;math/tex&quot;&gt;\lambda&lt;/script&gt; is the regularization 
 parameter we have been using. In the experiments quoted above, I used a single &lt;script type=&quot;math/tex&quot;&gt;\gamma_0 = 0.01&lt;/script&gt; for all the datasets. This is not a very good idea, since
 each dataset is different, each cost space disparate, with individual countours and shapes, which a second order method like LBFGS can leverage since it
-approximates that information in the quasi-Hessian it calculates on each iteration: but SGD would be at a loss, with an uninspired learning rate leading to
-slow convergence or zig-zagging. So how do we decide on a good learning rate for each dataset? How about we SGD again and again changing &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; each time and 
-picking up the model that lead to the lowest validation error? That’s topping, except when you are looking for a fast turn around rate, it essentially necessitates 
+approximates that information in the quasi-Hessian it calculates on each iteration; but SGD would be at a loss, with an uninspired learning rate leading to
+slow convergence or zig-zagging. So how do we decide on a good learning rate for each dataset? How about we run SGD again and again, changing &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; on each run, and 
+pick up the model that leads to the lowest validation error? That’s topping, except when you are looking for a fast turn around rate, it essentially necessitates 
 running multiple instances of the routine on different machines parallely. So what do we do? Well, let’s approximate: SGD approximates the gradient; we can 
 approximate multiple complete runs with different &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt;s, by running multiple single epochs with different &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt;s on a sample of the whole dataset, 
-and picking up the best &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; from those runs (which can be efficiently done with a binary search, half the next &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; to try if the present one is too
+and picking up the best &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; from those runs (which can be efficiently done with a binary search: halve the next &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; to try if the present one is too
 small, double it if it’s the contrary, which is the approach followed by &lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;[1]&lt;/a&gt; – see their sgd &lt;a href=&quot;https://github.com/npinto/bottou-sgd/blob/master/crf/crfsgd.cpp#L1562&quot;&gt;code&lt;/a&gt;). That’s what I did, and here are the updated
 results for the two big datasets:&lt;/p&gt;
 
@@ -212,9 +212,9 @@ results for the two big datasets:&lt;/p&gt;
 &lt;/table&gt;
 
 &lt;p&gt;Notice that these values converge much faster to the minimum compared to the previous run with an arbitrary learning rate, at the expense of running a few more epochs(10 to be specific).
-Since the previous &lt;script type=&quot;math/tex&quot;&gt;\gamma_0&lt;/script&gt;(&lt;script type=&quot;math/tex&quot;&gt;0.01&lt;/script&gt;) for &lt;em&gt;conll2000&lt;/em&gt; was pretty close to the optimal(&lt;script type=&quot;math/tex&quot;&gt;0.05&lt;/script&gt;), there is no glaring difference; but it’s evident that we take larger steps in the 
-latter that leads to a better weight vector for the same number of epochs. It’s the opposite with &lt;em&gt;other&lt;/em&gt;, where the former &lt;script type=&quot;math/tex&quot;&gt;\gamma_0&lt;/script&gt; of &lt;script type=&quot;math/tex&quot;&gt;0.01&lt;/script&gt; was significantly larger than
-the optimal value of &lt;script type=&quot;math/tex&quot;&gt;0.00078&lt;/script&gt;; so I guess the weight updations zigzagged a lot around the valley, diverging at times, definitely between epochs 5 and 10, as evidenced by the 
+Since the previous &lt;script type=&quot;math/tex&quot;&gt;\gamma_0&lt;/script&gt;(&lt;script type=&quot;math/tex&quot;&gt;0.01&lt;/script&gt;) for &lt;em&gt;conll2000&lt;/em&gt; was pretty close to the optimal(&lt;script type=&quot;math/tex&quot;&gt;0.05&lt;/script&gt;), there is no glaring difference there; nevertheless, it’s evident that we are taking larger steps
+with &lt;script type=&quot;math/tex&quot;&gt;\gamma_0=0.5&lt;/script&gt; which leads to a better weight vector for the same number of epochs. On the contrary, with &lt;em&gt;other&lt;/em&gt;, where the former &lt;script type=&quot;math/tex&quot;&gt;\gamma_0&lt;/script&gt; of &lt;script type=&quot;math/tex&quot;&gt;0.01&lt;/script&gt; was significantly larger than
+the optimal value of &lt;script type=&quot;math/tex&quot;&gt;0.00078&lt;/script&gt;, the weight updations zigzagged a lot around the valley, diverging at times, as evidenced by the 
 drop in accuracy on the test set from &lt;script type=&quot;math/tex&quot;&gt;53\%&lt;/script&gt; to &lt;script type=&quot;math/tex&quot;&gt;50\%&lt;/script&gt; after 5 and 10 iterations. The second round of runs, in strong contrast, gives significantly better numbers on the test set.
 In the output log of the program, we can clearly see the objective(&lt;strong&gt;obj&lt;/strong&gt;) running haywire for the first rounds of tests:&lt;/p&gt;
 
@@ -236,22 +236,23 @@ In the output log of the program, we can clearly see the objective(&lt;strong&gt
 &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Okay, so we started out trying to incorporate SGD routines into CRF++, to make it faster, and after bouncing around some theoretical and practical considerations and toiling a bit to get 
-our wayward learning rate home, it seems we are finally there. Time to bring out the hammock and sip some pina colada! Or is it?&lt;/p&gt;
+our wayward learning rate home, it seems we are finally there. Time to take out the hammock and sip some pina colada! Or would you rather have some tea instead?&lt;/p&gt;
 
 &lt;h2 id=&quot;welcome-to-the-mad-tea-party&quot;&gt;Welcome to the mad tea-party&lt;/h2&gt;
 &lt;p&gt;My laptop has 8 cpu cores. While one of them is madly spewing out gradients, the other seven are dozing off like the Dormouse. SGD is inherently sequential: even though it beats
-the LBFGS routine running on all 8 cores, wouldn’t it be nicer still if we can get those idling Dormouses to partake in our tea-party? Wake up those lazy bums and pass each a cup of hot simmering tea:
-Alas! we have got just one tea-pot, and now the Dormouses are clawing at each other to get hold of it. In case the allegory got too far fetched, it was simply pointing out that parallelizing SGD
-is difficult, since the over-head involved with acquiring/releasing locks on the weight vector quickly nullifies any advantages of the fast routine. So what do we do? Time to go &lt;a href=&quot;https://www.eecs.berkeley.edu/~brecht/papers/hogwildTR.pdf&quot;&gt;Hogwild&lt;/a&gt; !&lt;/p&gt;
+the LBFGS routine running on all 8 cores, wouldn’t it be nicer still if we can get those idling Dormouses(it’s not Dormice, it’s like Harrys and Dicks) to partake in our tea-party? 
+Wake up those lazy bums and pass each a cup of hot simmering tea:
+Alas! we have got just one tea-pot, and now the Dormouses are clawing at each other to get hold of it. In case the allegory went too far, it was simply pointing out that parallelizing SGD
+is difficult, since the overhead involved with acquiring/releasing locks on the weight vector promptly nullifies any advantages of the fast routine. So what do we do? Time to go &lt;a href=&quot;https://www.eecs.berkeley.edu/~brecht/papers/hogwildTR.pdf&quot;&gt;Hogwild&lt;/a&gt; !&lt;/p&gt;
 
 &lt;h1 id=&quot;the-mad-hatter-goes-berserk&quot;&gt;The mad-hatter goes berserk&lt;/h1&gt;
 &lt;p&gt;How does Hogwild get aroud the locking debacle then? Simple: it goes mad (I was in half a mind to say ‘we kill the batman’), disregards the access sequences and just updates the weight, without 
-caring whether it inadvertently over-wrote a simultaneous change by another thread. Here’s the kicker: in most of the optimization problems, each individual example influences only a very small part 
+caring whether it inadvertently overwrote a simultaneous change by another thread. Here’s the kicker: in most of the optimization problems, each individual example influences only a very small part 
 of the gradient vector, viz. only the indices whose corresponding features fired in the example, so that two random updations have a very meagre probability of colliding. The convergence analysis of
 Hogwild scheme hinges on this &lt;em&gt;sparsity&lt;/em&gt; assumption. And it fits perfectly for CRFs used in tagging, as most of the features used are word or prefix/suffix features and each example 
-consequently fires features that correspond only to the words of the sentence, leaving the other numerous words in the vocabulary intact.
-Furthermore, they also claim that even if collisions occured, they introduce insignificant error into the computation. Just like in SGD, I shuffle the
-dataset, span &lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt; threads, each of which looks at &lt;script type=&quot;math/tex&quot;&gt;\frac{|dataset|}{n}&lt;/script&gt; examples and does SGD individually on the weight vector, taking care to update only those components whose gradient changed. 
+consequently fires features that correspond only to the words of the sentence, leaving those corresponding to the other numerous words in the vocabulary intact.
+Furthermore, Hogwild also claims that even if collisions occured, they would introduce insignificant errors into the computation. Just like in SGD, I shuffle the
+dataset, spawn &lt;script type=&quot;math/tex&quot;&gt;m&lt;/script&gt; threads, each of which looks at &lt;script type=&quot;math/tex&quot;&gt;\frac{|dataset|}{m}&lt;/script&gt; examples and does SGD individually on the weight vector, taking care to update only those components whose gradient changed. 
 On each iteration, I rescale the &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; before employing the threads. Here are the results:&lt;/p&gt;
 
 &lt;table rules=&quot;groups&quot;&gt;
@@ -279,16 +280,16 @@ On each iteration, I rescale the &lt;script type=&quot;math/tex&quot;&gt;\gamma&
   &lt;/tbody&gt;
 &lt;/table&gt;
 
-&lt;p&gt;The accuracy is almost the same as SGD, while it takes lesser time. There are some glitches though: the cost function zigzags a bit towards the end when run for 100 iterations, for both the datasets,
+&lt;p&gt;The accuracy is almost the same as SGD, while it takes lesser time. There are some glitches though: The cost function zigzags a bit towards the end when run for 100 iterations, for both the datasets,
 which leads to a slight drop in accuracy on &lt;em&gt;conll2000&lt;/em&gt; dataset. Remember that I am rescaling &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; only at the beginning of the iteration, and it remains constant throughout when the threads are 
-crunching data. I guess I should use a better schedule for rate scaling. Or look into Hogwild literature to figure it out. May be later: for now, there is still one more thing to try.&lt;/p&gt;
+crunching data. I guess I should use a better schedule for rate scaling. Or look into the Hogwild literature to figure something out. May be later: For now, there is still one more thing to try.&lt;/p&gt;
 
-&lt;h1 id=&quot;colluding-with-the-red-queen&quot;&gt;Colluding with the Red Queen&lt;/h1&gt;
-&lt;p&gt;Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; close enough to &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt;: well, most of the time, that’s not really the case. 
+&lt;h1 id=&quot;colluding-with-the-queen-of-hearts&quot;&gt;Colluding with the Queen of Hearts&lt;/h1&gt;
+&lt;p&gt;Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; close enough to &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt;? Well, most of the time, that’s not really the case. 
 But as we just saw, SGD does a really good job of bringing &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; close to &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt; in a really short time, though it loiters around once it gets there and takes a long long time to reach 
-the absolute &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt;. So, why not combine them both: run SGD in the beginning, to quickly get the &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
-of both worlds. I have seen a few algorithms doing that before, specifically &lt;a href=&quot;http://hunch.net/~vw/&quot;&gt;Vowpal Wabbit&lt;/a&gt; comes to mind. So I set in a routine in CRF++ which can run one of the SGD versions first for a 
-specified number of epochs, and then switches over to LBFGS till convergence or &lt;em&gt;maxiter&lt;/em&gt; number of steps.&lt;/p&gt;
+the absolute &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt;. So, why not combine them both: Run SGD in the beginning, to quickly get the &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
+of both worlds. I have seen a few algorithms doing that before, specifically &lt;a href=&quot;http://hunch.net/~vw/&quot;&gt;Vowpal Wabbit&lt;/a&gt; comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
+specified number of epochs, and then switches over to LBFGS till convergence or &lt;em&gt;maxiter&lt;/em&gt; number of steps. The following results are from a Hogwild assisted run:&lt;/p&gt;
 
 &lt;table rules=&quot;groups&quot;&gt;
   &lt;thead&gt;
@@ -315,6 +316,35 @@ specified number of epochs, and then switches over to LBFGS till convergence or 
 &lt;p&gt;So we get almost the same numbers as compared to pure LBFGS as far as accuracy is concerned, but we gain significantly in time, ~600s in each case. If we just look at the number of iterations,
 CRF++ took 220 and 1259 full iterations through &lt;em&gt;conll2000&lt;/em&gt; and &lt;em&gt;other&lt;/em&gt; respectively, when we start with &lt;script type=&quot;math/tex&quot;&gt;w_0=\mathbf{0}&lt;/script&gt;, which came down to 159 and 1067 when we get a modified &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; 
 found by running 5 epochs of SGD (Hogwild).&lt;/p&gt;
+
+&lt;h2 id=&quot;oh-ive-had-such-a-curious-dream&quot;&gt;“Oh, I’ve had such a curious dream!”&lt;/h2&gt;
+&lt;p&gt;Well, I think it’s time to wake up now. There are many other issues I haven’t touched upon though.&lt;/p&gt;
+
+&lt;p&gt;For starters, there is the mini-batch gradient descent, which updates weights after seeing &lt;script type=&quot;math/tex&quot;&gt;k&lt;/script&gt; number
+of examples (&lt;script type=&quot;math/tex&quot;&gt;k&lt;/script&gt;~20 for instance); the gradient estimate is less noisy, as we are estimating based on multiple instances instead of a single one, and our progress is quick, since we don’t go through
+the whole dataset before updating weights, which is sort of like leveraging the advantages of both batch and stochastic gradient descent. As an added bonus, the gradient calculation can be vectorized
+which leads to a more efficient parallelized implementation, making it potentially faster than SGD. Though I coded up a routine in CRF++ for this, it’s not an efficient implementation. Yet.&lt;/p&gt;
+
+&lt;p&gt;CRF++ also has routines for L1 optimization of LBFGS. I would love to surface the same functionality for SGD. L1 optimization for SGD has some issues though: it’s inefficient to apply L1
+penalty to weights of all features and a naive application of L1 penalty doesn’t always lead to a compact model, thanks to the noisy approximate gradients. You can read more about it &lt;a href=&quot;http://www.aclweb.org/anthology/P09-1054&quot;&gt;here&lt;/a&gt;.
+It would be interesting to investigate those issues.&lt;/p&gt;
+
+&lt;p&gt;And then there is the issue of ‘speed up through leveraging the sparsity of the training examples’. If we rearrange the SGD updation rule, it looks something like this:&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;w_{t+1} = (1-\frac{\gamma\lambda}{n})w_t - \gamma L&#39;(x_t, y_t, w_t)&lt;/script&gt;
+
+&lt;p&gt;Now, since the training example &lt;script type=&quot;math/tex&quot;&gt;x_t&lt;/script&gt; is sparse and the &lt;script type=&quot;math/tex&quot;&gt;L&#39;(x_t, y_t, w_t)&lt;/script&gt; part is non-zero only for non-zero coefficients in &lt;script type=&quot;math/tex&quot;&gt;x_t&lt;/script&gt;, we are wasting time rescaling all the components of
+&lt;script type=&quot;math/tex&quot;&gt;w_t&lt;/script&gt;. If we alternatively represent &lt;script type=&quot;math/tex&quot;&gt;w_t&lt;/script&gt; as &lt;script type=&quot;math/tex&quot;&gt;sW_t&lt;/script&gt;, where &lt;script type=&quot;math/tex&quot;&gt;s&lt;/script&gt; is a scalar, the above update equation can be changed to this:&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;s_{t+1} = (1-\frac{\gamma\lambda}{n})s_t, 
+W_{t+1} = W_t - \gamma L&#39;(x_t, y_t, s_tW_t)/s_{t+1}&lt;/script&gt;
+
+&lt;p&gt;where only those coefficients of &lt;script type=&quot;math/tex&quot;&gt;W_t&lt;/script&gt; for which &lt;script type=&quot;math/tex&quot;&gt;x_t&lt;/script&gt; has a non-zero component get updated. &lt;a href=&quot;https://github.com/npinto/bottou-sgd/blob/master/crf/crfsgd.cpp#L1562&quot;&gt;Bottou’s crf-sgd code&lt;/a&gt; employs this trick, and it’s much much faster than what I have
+with CRF++. When I get time, I will delve deeper into the CRF++ gradient calculation routine and try to incorporate this bit of optimization. In the meanwhile, if you are only interested in 
+doing CRF tagging with SGD, you had better use &lt;a href=&quot;https://github.com/npinto/bottou-sgd/blob/master/crf/crfsgd.cpp#L1562&quot;&gt;this&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Another thing I would like to do is getting the parallelized version improved. Delving deeper into Hogwild literature is one option: another is to try other parallelized implementations like 
+&lt;a href=&quot;http://arxiv.org/pdf/1104.5525.pdf&quot;&gt;this&lt;/a&gt; or &lt;a href=&quot;http://www.research.rutgers.edu/~lihong/pub/Zinkevich11Parallelized.pdf&quot;&gt;this&lt;/a&gt;, and compare the performance of synchronous and asynchronous updation. May be next time, when I take a peek through the looking glass!&lt;/p&gt;
 
 &lt;h1 id=&quot;references&quot;&gt;REFERENCES&lt;/h1&gt;
 
