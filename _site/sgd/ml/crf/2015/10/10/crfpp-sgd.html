@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>On my (Stochastic Gradient) Descent into CRF++</title>
+  <meta name="description" content="  “Begin at the beginning,” the King said, very gravely, “and go on till you come to the end: then stop.”">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://yourdomain.com/sgd/ml/crf/2015/10/10/crfpp-sgd.html">
+  <link rel="alternate" type="application/rss+xml" title="Musings from the study" href="http://yourdomain.com/feed.xml" />
+</head>
+
+
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Musings from the study</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">On my (Stochastic Gradient) Descent into CRF++</h1>
+    <p class="post-meta">Oct 10, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <blockquote>
+  <p>“Begin at the beginning,” the King said, very gravely, “and go on till you come to the end: then stop.”</p>
+</blockquote>
+
+<p>I was recently reading this <a href="https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf">awesome paper</a> on conjugade gradients (and I think you should too, 
+if you are even barely interested in figuring out what goes on at the heart of all those 
+weight optimization routines), which led me to delve deeper into other optimization algorithms
+and investigate which of them are considered suitable for learning models from large-scale data.
+On one hand we have batch methods like gradient descent, L-BFGS, and conjugate gradient descent, with
+their well-studied and theoretically guaranteed faster convergence rates, while on the other,
+we have approximations like stochastic gradient descent (SGD), with their poorer
+convergence rates. But surprisingly, it turns out
+that SGD is the clear winner (<a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf">[1]</a><a href="http://arxiv.org/abs/1206.5533">[2]</a><a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[3]</a>), performing miraculously well 
+in large neural networks and on massive data. Now it so happened that I recently got a little tired
+of watching my <a href="https://taku910.github.io/crfpp/">CRF++</a> program, which uses fast LBFGS optimization and has been a constant
+loyal companion in all my tagging expeditions over the past year, doggedly crunching bits 
+for 24 hours on my laptop, trying to optimize just 100k tagged samples, and I thought, well, it’s
+high time I did some hacking around and put the theory to test.
+While I was familiar with most of the above mentioned methods, especially so with SGD, it was a classic case of 
+‘knowing the name of something vs knowing something’, most of my attempts being relegated to 
+using them as off-the-shelf black-boxes or squinty-eyed yawn-punctuated acrobatics 
+on a keyboard to cook up a 5-line matlab function to plot some graphs at 2 in the night to meet the
+next morning assignment deadline, with hardly any insight into their inner-workings or caveats. 
+This post delineates my attempts at integrating SGD and related methods with CRF++ and reports 
+the insights I gained thereof. The git repo can be found <a href="https://github.com/sushobhannayak/crfpp-extensions">here</a>.</p>
+
+<h2 id="down-the-rabbit-hole">Down the rabbit hole</h2>
+<p>Consider the usual supervised learning setup, where we have a set of training examples <script type="math/tex">(x_i,y_i)</script>
+and we are trying to minimize the following cost function</p>
+
+<script type="math/tex; mode=display">E_n(w) = \frac{\lambda}{2}\|w\|^2 + \frac{1}{n}\sum_{i=1}^n L(x_i,y_i,w)</script>
+
+<p>the <script type="math/tex">w</script> that minimizes it being weights we are interested in. Since it’s hard/impossible to 
+directly solve the equation, optimization methods usually employ iterative metods, 
+starting with an intial guess <script type="math/tex">w_0</script> for <script type="math/tex">w</script>, iterating through the training examples and then updating it 
+to <script type="math/tex">w_t</script> to get a lower <script type="math/tex">E_n(w_t)</script> on the next iteration, doing this till we are unable to make it any
+smaller. Gradient descent utilizes the notion that the gradient of <script type="math/tex">E_n</script> at any point <script type="math/tex">w_t</script> is the 
+direction of steepest increase of <script type="math/tex">E_n</script> and so, if we want to find the minimum <script type="math/tex">E_n</script>, we had better
+move in the directly opposite direction, resulting in an updation rule like this:</p>
+
+<script type="math/tex; mode=display">w_{t+1} = w_t - \gamma \big(\lambda w_t + \frac{1}{n}\sum_i L'(x_i, y_i, w_t)\big)</script>
+
+<p>where <script type="math/tex">\gamma</script> is the learning rate (more on this later). LBFGS essentially replaces constant <script type="math/tex">\gamma</script>
+with matrix <script type="math/tex">\Gamma_t</script> which approaches the inverse of the Hessian of <script type="math/tex">E_n</script>, the particulars of which are
+explained in more detail than I would be able to explain <a href="http://aria42.com/blog/2014/12/understanding-lbfgs/">here</a>. This usually leads to faster
+convergence than pure gradient descent since the Hessian is a measure of the curvature of <script type="math/tex">E_n</script>, and it leads
+to a better descent direction. If the initial weight <script type="math/tex">w_0</script> is close enough to the optimum, and the learning rate
+<script type="math/tex">\gamma</script> is sufficiently small, the above methods lead to an exponential asymptotic decrease in the cost function.
+(We will see some interesting consequences of the assumption of the closeness of <script type="math/tex">w_0</script> to <script type="math/tex">w_{opt}</script> later)</p>
+
+<p>The SGD is a simplified approximation of gradient descent(GD). It says, hey look, all the examples are sampled 
+from the same original distribution any way, so why not estimate the gradient on the basis of a single randomly
+picked sample from the dataset, which leads to an updation rule like the following:</p>
+
+<script type="math/tex; mode=display">w_{t+1} = w_t - \gamma \big( \frac{\lambda}{n} w_t + L'(x_t, y_t, w_t)\big)</script>
+
+<p>So here’s the question, if it’s just an approximation of the gradient of <script type="math/tex">E_n</script>, how come it has faster convergence
+rate than GD (which works on the true empirical gradient) and works better on massive datasets? Well, it doesn’t. Its 
+convergence speed is actually limited by the noisy approximation of the true gradient, and is asymptotically much
+slower than GD (it takes <script type="math/tex">O(1/\rho)</script> time compared to <script type="math/tex">O(n \log 1/\rho)</script> for GD and <script type="math/tex">O(n\log \log 1/\rho)</script> for LBFGS 
+to reach within <script type="math/tex">\rho</script> bound of <script type="math/tex">E_{n,min}</script>). However, what it does <em>really</em> well is to reach a predefined <em>expected
+risk(<script type="math/tex">E</script>)</em> faster than the others. When we set out saying that we are trying to minimize <script type="math/tex">E_n</script>, we actually lied a bit. What we 
+really wanted to minimize was <script type="math/tex">E</script>, the <em>expected risk</em>, which is independent of <script type="math/tex">n</script>. <script type="math/tex">E_n</script> is just a proxy for <script type="math/tex">E</script>,
+since we don’t know the correct distribution and only have <script type="math/tex">(x_i, y_i)</script> pairs as samples from the original distribution. 
+SGD is pretty good at getting to a predefined <script type="math/tex">E</script> faster, because it can process more training examples in the alloted
+time, which reduces the variance. Section 3 of <a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">this paper</a> gives a nice derivation of the bounds and convergence 
+rates. Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
+patterns appear in large datasets; a batch algorithm only calculates the gradient after seeing them all. SGD, on the other hand,
+can get the same average gradient over that cluster on seeing it once: so a lot of time is spent calculating gradients in GD
+and less time in updating weights, while it’s the other way round with SGD. As an added bonus, since updates in SGD are noisy,
+they can sometimes take you to another basin in the contour, with perhaps a better minima, while batch methods are stuck
+in the basin they were initialized in.</p>
+
+<h1 id="she-drinks-the-potion-of-reality">She drinks the potion of reality</h1>
+<p>So I hacked the CRF++ codebase to set up an SGD routine, that shuffles the data on each epoch (one full iteration through the dataset),
+and updates the weights after seeing each example. I used the datasets provided with the original CRF++ suite, which are really small,
+with around 100 odd sentences in each, and threw in the 9000 sentences each from <a href="http://www.clips.uantwerpen.be/conll2000/chunking/">conll2000 chunking dataset</a> and a private
+dataset for good measure (call it <em>other</em>). I used a learning rate of 0.01, and <script type="math/tex">\lambda</script> of 10, and discarded features that occured less than 3 times. 
+And I also printed out the current error and cost statistics by sampling every 5 epochs, 
+to make sure that optimization was proceeding correctly. The numbers quoted below are testing <strong>accuracies</strong> on the test sets of the corresponding
+datasets (using the standard <a href="http://www.cnts.ua.ac.be/conll2000/chunking/conlleval.txt">conlleval</a> script), 
+and <strong>the running time is noted in seconds in brackets</strong>. The original CRF++ is running LBFGS in 8 threads, while SGD is single-threaded.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Dataset/<em>Epochs</em></th>
+      <th style="text-align: center"><em>5(LBFGS)</em></th>
+      <th style="text-align: center"><em>10(LBFGS)</em></th>
+      <th style="text-align: center"><em>100(LBFGS)</em></th>
+      <th style="text-align: center"><em>To Conv(LBFGS)</em></th>
+      <th style="text-align: center"><em>5(SGD)</em></th>
+      <th style="text-align: center"><em>10(SGD)</em></th>
+      <th style="text-align: center"><em>100(SGD)</em></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><em>JapaneseNER</em></td>
+      <td style="text-align: center"><strong>92.89</strong>(1.18)</td>
+      <td style="text-align: center"><strong>93.04</strong>(2.33)</td>
+      <td style="text-align: center"><strong>96.17</strong>(14.20)</td>
+      <td style="text-align: center"><strong>96.17</strong>(14.20)</td>
+      <td style="text-align: center"><strong>95.20</strong>(1.50)</td>
+      <td style="text-align: center"><strong>95.84</strong>(2.91)</td>
+      <td style="text-align: center"><strong>96.08</strong>(28.82)</td>
+    </tr>
+    <tr>
+      <td><em>conll2000</em></td>
+      <td style="text-align: center"><strong>87.35</strong>(87.34)</td>
+      <td style="text-align: center"><strong>92.77</strong>(186.35)</td>
+      <td style="text-align: center"><strong>95.76</strong>(1846.19)</td>
+      <td style="text-align: center"><strong>95.88</strong>(4044.17)</td>
+      <td style="text-align: center"><strong>95.54</strong>(416.18)</td>
+      <td style="text-align: center"><strong>95.78</strong>(834.71)</td>
+      <td style="text-align: center"><strong>95.99</strong>(8152.78)</td>
+    </tr>
+    <tr>
+      <td><em>chunking</em></td>
+      <td style="text-align: center"><strong>86.01</strong>(0.33)</td>
+      <td style="text-align: center"><strong>89.23</strong>(0.63)</td>
+      <td style="text-align: center"><strong>89.85</strong>(2.78)</td>
+      <td style="text-align: center"><strong>89.85</strong>(2.78)</td>
+      <td style="text-align: center"><strong>85.89</strong>(0.32)</td>
+      <td style="text-align: center"><strong>87.67</strong>(0.64)</td>
+      <td style="text-align: center"><strong>89.91</strong>(5.84)</td>
+    </tr>
+    <tr>
+      <td><em>other</em></td>
+      <td style="text-align: center"><strong>36.88</strong>(19.55)</td>
+      <td style="text-align: center"><strong>42.25</strong>(39.05)</td>
+      <td style="text-align: center"><strong>68.41</strong>(413.30)</td>
+      <td style="text-align: center"><strong>69.23</strong>(5289.52)</td>
+      <td style="text-align: center"><strong>53.89</strong>(108.48)</td>
+      <td style="text-align: center"><strong>50.09</strong>(217.85)</td>
+      <td style="text-align: center"><strong>69.44</strong>(2137.49)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Each epoch is one iteration through the dataset. The numbers above track our discussion fabulously. SGD gets to a pretty good test accuracy after
+just 5 epochs on both datasets, while LBFGS perspires on for 10 to 100 iterations, the difference being more marked as we 
+move to a larger dataset. Consequently, even though individual epochs take longer in SGD (they naturally will, since we are updating weights after
+seeing every example; so we are updating feature number of variables every time, and feature vector cardinality can be really huge in such 
+tasks, it is 1679700 for conll dataset for example), we get to a decent region quite soon. This is the getting a quite low expected risk
+<script type="math/tex">E</script> part. As we further increase the number of epochs, we however have limited further improvement, with we seemingly spending a lot of time 
+doing a meagre improvement in accuracy (in both cases, improvement in accuracy is <script type="math/tex">% <![CDATA[
+< 1\% %]]></script> after initial 5 iterations), which is the 
+it-takes-too-late-to-get-to-the-absolute-minimum part; but fortunately, most of the time, 
+the absolute minimum really doesn’t matter – we are pretty happy getting to a close enough vicinity of the minimum. But that doesn’t seem to be much
+of a concern for this experiment, as SGD is in fact consistently out-performing LBFGS, and getting us to a better minima. One thing to notice though is 
+the drop in accuracy from 54% to 50% in the final dataset after running the algorithm for 5 more epochs. We will come to that next, and see how learning
+rate can either make or break your day.</p>
+
+<h1 id="where-is-my-cat">Where is my cat</h1>
+<p>In SGD, since the estimation of the gradient is noisy, the learning rate <script type="math/tex">\gamma</script> plays a really prominent role in convergence of the routine. 
+Make it too large, and you move the weight around irratically, bouncing it off the side of the basin, at times converging towards the bottom, and 
+aiming for the sky on the next iteration. Make it too small, and it can’t take a big enough step, thus giving into traipsing around instead of homing in on the 
+minima. Ideally, it should be high in the beginning, where we want the optimization routine to explore more and take large noisy steps, and gradually come down,
+approaching zero as we get closer to the minima, so reduce severe fluctuations in an already stable weight. Theoretically, the decreasing learning rate <script type="math/tex">\gamma_t</script>
+needs to follow the following properties for convergence: <script type="math/tex">% <![CDATA[
+\sum_t \gamma_t  = \infty, \sum_t \gamma_t^2 < \infty %]]></script>. In practice, usually a learning rate of the
+form <script type="math/tex">\gamma_t = \gamma_0 (1+\gamma_0\lambda t)^{-1}</script> works well<a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[3]</a>, where <script type="math/tex">\gamma_0</script> is the initial <script type="math/tex">\gamma</script> at time <script type="math/tex">t=0</script> and <script type="math/tex">\lambda</script> is the regularization 
+parameter we have been using. In the experiments quoted above, I used a single <script type="math/tex">\gamma_0 = 0.01</script> for all the datasets. This is not a very good idea, since
+each dataset is different, each cost space disparate, with individual countours and shapes, which a second order method like LBFGS can leverage since it
+approximates that information in the quasi-Hessian it calculates on each iteration: but SGD would be at a loss, with an uninspired learning rate leading to
+slow convergence or zig-zagging. So how do we decide on a good learning rate for each dataset? How about we SGD again and again changing <script type="math/tex">\gamma</script> each time and 
+picking up the model that lead to the lowest validation error? That’s topping, except when you are looking for a fast turn around rate, it essentially necessitates 
+running multiple instances of the routine on different machines parallely. So what do we do? Well, let’s approximate: SGD approximates the gradient; we can 
+approximate multiple complete runs with different <script type="math/tex">\gamma</script>s, by running multiple single epochs with different <script type="math/tex">\gamma</script>s on a sample of the whole dataset, 
+and picking up the best <script type="math/tex">\gamma</script> from those runs (which can be efficiently done with a binary search, half the next <script type="math/tex">\gamma</script> to try if the present one is too
+small, double it if it’s the contrary, which is the approach followed by <a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">[3]</a> – see their sgd <a href="https://github.com/npinto/bottou-sgd/blob/master/crf/crfsgd.cpp#L1562">code</a>). That’s what I did, and here are the updated
+results for the two big datasets:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Dataset/<em>Epoch</em></th>
+      <th style="text-align: center"><script type="math/tex">\gamma_0</script></th>
+      <th style="text-align: right"><em>5(SGD)</em></th>
+      <th style="text-align: right"><em>10(SGD)</em></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><em>conll2000</em></td>
+      <td style="text-align: center">0.05</td>
+      <td style="text-align: right"><strong>95.84</strong>(527.19)</td>
+      <td style="text-align: right"><strong>95.87</strong>(949.94)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><em>other</em></td>
+      <td style="text-align: center">0.00078</td>
+      <td style="text-align: right"><strong>60.58</strong>(204.87)</td>
+      <td style="text-align: right"><strong>68.16</strong>(274.75)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Notice that these values converge much faster to the minimum compared to the previous run with an arbitrary learning rate, at the expense of running a few more epochs(10 to be specific).
+Since the previous <script type="math/tex">\gamma_0</script>(<script type="math/tex">0.01</script>) for <em>conll2000</em> was pretty close to the optimal(<script type="math/tex">0.05</script>), there is no glaring difference; but it’s evident that we take larger steps in the 
+latter that leads to a better weight vector for the same number of epochs. It’s the opposite with <em>other</em>, where the former <script type="math/tex">\gamma_0</script> of <script type="math/tex">0.01</script> was significantly larger than
+the optimal value of <script type="math/tex">0.00078</script>; so I guess the weight updations zigzagged a lot around the valley, diverging at times, definitely between epochs 5 and 10, as evidenced by the 
+drop in accuracy on the test set from <script type="math/tex">53\%</script> to <script type="math/tex">50\%</script> after 5 and 10 iterations. The second round of runs, in strong contrast, gives significantly better numbers on the test set.
+In the output log of the program, we can clearly see the objective(<strong>obj</strong>) running haywire for the first rounds of tests:</p>
+
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">62838</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">75921</span> <span class="n">obj</span><span class="o">=</span><span class="mi">9</span><span class="o">.</span><span class="mi">17097</span> <span class="n">diff</span><span class="o">=</span><span class="mi">1</span><span class="o">.</span><span class="mo">00000</span>
+<span class="n">epoch</span> <span class="o">=</span><span class="mi">0</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">2863</span><span class="o">.</span><span class="mi">55448</span>
+ <span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">39495</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">57655</span> <span class="n">obj</span><span class="o">=</span><span class="mi">5</span><span class="o">.</span><span class="mi">17678</span> <span class="n">diff</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">43553</span>
+<span class="n">epoch</span> <span class="o">=</span><span class="mi">1</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">4440</span><span class="o">.</span><span class="mi">64808</span>
+ <span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">48286</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">63081</span> <span class="n">obj</span><span class="o">=</span><span class="mi">6</span><span class="o">.</span><span class="mi">90334</span> <span class="n">diff</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">33352</span>
+<span class="n">epoch</span> <span class="o">=</span><span class="mi">2</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">5757</span><span class="o">.</span><span class="mi">25287</span>
+ <span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">43083</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">61483</span> <span class="n">obj</span><span class="o">=</span><span class="mi">7</span><span class="o">.</span><span class="mi">08558</span> <span class="n">diff</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mo">02640</span>
+<span class="n">epoch</span> <span class="o">=</span><span class="mi">3</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">6951</span><span class="o">.</span><span class="mi">25845</span>
+ <span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">39612</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">53246</span> <span class="n">obj</span><span class="o">=</span><span class="mi">5</span><span class="o">.</span><span class="mi">18373</span> <span class="n">diff</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">26841</span>
+<span class="o">.</span><span class="n">.</span><span class="o">.</span>
+ <span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">36398</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">50242</span> <span class="n">obj</span><span class="o">=</span><span class="mi">5</span><span class="o">.</span><span class="mi">24929</span> <span class="n">diff</span><span class="o">=</span><span class="mi">1</span><span class="o">.</span><span class="mi">96482</span>
+<span class="n">epoch</span> <span class="o">=</span><span class="mi">26</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">22490</span><span class="o">.</span><span class="mi">62973</span>
+ <span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">18194</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">31928</span> <span class="n">obj</span><span class="o">=</span><span class="mi">1</span><span class="o">.</span><span class="mi">93873</span> <span class="n">diff</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">63067</span>
+<span class="n">epoch</span> <span class="o">=</span><span class="mi">27</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">22902</span><span class="o">.</span><span class="mi">92107</span>
+ <span class="n">terr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">34560</span> <span class="n">serr</span><span class="o">=</span><span class="mi">0</span><span class="o">.</span><span class="mi">46221</span> <span class="n">obj</span><span class="o">=</span><span class="mi">4</span><span class="o">.</span><span class="mi">46865</span> <span class="n">diff</span><span class="o">=</span><span class="mi">1</span><span class="o">.</span><span class="mi">30494</span>
+<span class="o">.</span><span class="n">.</span><span class="o">.</span></code></pre></div>
+
+<p>Okay, so we started out trying to incorporate SGD routines into CRF++, to make it faster, and after bouncing around some theoretical and practical considerations and toiling a bit to get 
+our wayward learning rate home, it seems we are finally there. Time to bring out the hammock and sip some pina colada! Or is it?</p>
+
+<h2 id="welcome-to-the-mad-tea-party">Welcome to the mad tea-party</h2>
+<p>My laptop has 8 cpu cores. While one of them is madly spewing out gradients, the other seven are dozing off like the Dormouse. SGD is inherently sequential: even though it beats
+the LBFGS routine running on all 8 cores, wouldn’t it be nicer still if we can get those idling Dormouses to partake in our tea-party? Wake up those lazy bums and pass each a cup of hot simmering tea:
+Alas! we have got just one tea-pot, and now the Dormouses are clawing at each other to get hold of it. In case the allegory got too far fetched, it was simply pointing out that parallelizing SGD
+is difficult, since the over-head involved with acquiring/releasing locks on the weight vector quickly nullifies any advantages of the fast routine. So what do we do? Time to go <a href="https://www.eecs.berkeley.edu/~brecht/papers/hogwildTR.pdf">Hogwild</a> !</p>
+
+<h1 id="the-mad-hatter-goes-berserk">The mad-hatter goes berserk</h1>
+<p>How does Hogwild get aroud the locking debacle then? Simple: it goes mad (I was in half a mind to say ‘we kill the batman’), disregards the access sequences and just updates the weight, without 
+caring whether it inadvertently over-wrote a simultaneous change by another thread. Here’s the kicker: in most of the optimization problems, each individual example influences only a very small part 
+of the gradient vector, viz. only the indices whose corresponding features fired in the example, so that two random updations have a very meagre probability of colliding. The convergence analysis of
+Hogwild scheme hinges on this <em>sparsity</em> assumption. And it fits perfectly for CRFs used in tagging, as most of the features used are word or prefix/suffix features and each example 
+consequently fires features that correspond only to the words of the sentence, leaving the other numerous words in the vocabulary intact.
+Furthermore, they also claim that even if collisions occured, they introduce insignificant error into the computation. Just like in SGD, I shuffle the
+dataset, span <script type="math/tex">n</script> threads, each of which looks at <script type="math/tex">\frac{|dataset|}{n}</script> examples and does SGD individually on the weight vector, taking care to update only those components whose gradient changed. 
+On each iteration, I rescale the <script type="math/tex">\gamma</script> before employing the threads. Here are the results:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Dataset/<em>Epoch</em></th>
+      <th style="text-align: center"><em>5(SGD)</em></th>
+      <th style="text-align: right"><em>10(SGD)</em></th>
+      <th style="text-align: right"><em>100(SGD)</em></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><em>conll2000</em></td>
+      <td style="text-align: center"><strong>95.79</strong>(409.46)</td>
+      <td style="text-align: right"><strong>95.85</strong>(735.29)</td>
+      <td style="text-align: right"><strong>95.82</strong>(6472.88)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><em>other</em></td>
+      <td style="text-align: center"><strong>62.30</strong>(134.80)</td>
+      <td style="text-align: right"><strong>67.93</strong>(215.03)</td>
+      <td style="text-align: right"><strong>70.84</strong>(1692.06)</td>
+    </tr>
+  </tbody>
+</table>
+
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Musings from the study</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Musings from the study</li>
+          <li><a href="mailto:sushobhannayak@gmail.com">sushobhannayak@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/sushobhannayak">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">sushobhannayak</span>
+            </a>
+          </li>
+          
+
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Unsolicited garrulous accounts of my dabblings in Computer Science and Machine Learning
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

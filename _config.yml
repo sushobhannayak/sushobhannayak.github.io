@@ -1,0 +1,12 @@
+# Site settings
+title: Musings from the study
+email: sushobhannayak@gmail.com
+description: > # this means to ignore newlines until "baseurl:"
+  Unsolicited garrulous accounts of my dabblings in Computer Science and Machine Learning
+baseurl: "" # the subpath of your site, e.g. /blog/
+url: "http://yourdomain.com" # the base hostname & protocol for your site
+
+github_username:  sushobhannayak
+
+# Build settings
+markdown: kramdown
