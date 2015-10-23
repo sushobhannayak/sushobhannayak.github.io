@@ -6,13 +6,17 @@
 </description>
     <link>http://yourdomain.com/</link>
     <atom:link href="http://yourdomain.com/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 23 Oct 2015 00:02:43 -0700</pubDate>
-    <lastBuildDate>Fri, 23 Oct 2015 00:02:43 -0700</lastBuildDate>
+    <pubDate>Fri, 23 Oct 2015 00:05:17 -0700</pubDate>
+    <lastBuildDate>Fri, 23 Oct 2015 00:05:17 -0700</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
     
       <item>
         <title>On the convergence of SGD for large datasets</title>
-        <description>&lt;p&gt;In my &lt;a href=&quot;/sgd/ml/crf/2015/10/10/crfpp-sgd.html&quot;&gt;last post&lt;/a&gt;, we saw, or rather took it on faith, 
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;Keep digging.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;In my &lt;a href=&quot;/sgd/ml/crf/2015/10/10/crfpp-sgd.html&quot;&gt;last post&lt;/a&gt;, we saw, or rather took it on faith, 
 that Stochastic Gradient Descent(SGD) is much faster in getting to a reasonable solution compared to Gradient Descent(GD). 
 Instead of investigating the theoretical underpinnings, 
 I took the easier way out and just pointed the reader to the excellent discussion in &lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;this paper&lt;/a&gt;. 
@@ -189,9 +193,9 @@ pre-defined expected risk &lt;script type=&quot;math/tex&quot;&gt;\epsilon&lt;/s
 say &lt;script type=&quot;math/tex&quot;&gt;\epsilon \sim 3\rho&lt;/script&gt;, the conclusion still holds. &lt;/sub&gt;&lt;/p&gt;
 
 </description>
-        <pubDate>Wed, 21 Oct 2015 13:31:00 -0700</pubDate>
-        <link>http://yourdomain.com/sgd/ml/crf/2015/10/21/sgd-convergence.html</link>
-        <guid isPermaLink="true">http://yourdomain.com/sgd/ml/crf/2015/10/21/sgd-convergence.html</guid>
+        <pubDate>Fri, 23 Oct 2015 13:31:00 -0700</pubDate>
+        <link>http://yourdomain.com/sgd/ml/crf/2015/10/23/sgd-convergence.html</link>
+        <guid isPermaLink="true">http://yourdomain.com/sgd/ml/crf/2015/10/23/sgd-convergence.html</guid>
         
         
         <category>sgd</category>
