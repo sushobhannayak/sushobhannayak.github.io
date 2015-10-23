@@ -6,9 +6,201 @@
 </description>
     <link>http://yourdomain.com/</link>
     <atom:link href="http://yourdomain.com/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 12 Oct 2015 07:45:54 -0700</pubDate>
-    <lastBuildDate>Mon, 12 Oct 2015 07:45:54 -0700</lastBuildDate>
+    <pubDate>Fri, 23 Oct 2015 00:02:43 -0700</pubDate>
+    <lastBuildDate>Fri, 23 Oct 2015 00:02:43 -0700</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>On the convergence of SGD for large datasets</title>
+        <description>&lt;p&gt;In my &lt;a href=&quot;/sgd/ml/crf/2015/10/10/crfpp-sgd.html&quot;&gt;last post&lt;/a&gt;, we saw, or rather took it on faith, 
+that Stochastic Gradient Descent(SGD) is much faster in getting to a reasonable solution compared to Gradient Descent(GD). 
+Instead of investigating the theoretical underpinnings, 
+I took the easier way out and just pointed the reader to the excellent discussion in &lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;this paper&lt;/a&gt;. 
+Also, that post was more focused on the experiments I ran with CRF++, and a detailed theoretical discussion would have been a little out of place.
+This is an attempt to rectify that, to go through the derivations myself, to get a better understanding of the concepts in the process.&lt;/p&gt;
+
+&lt;p&gt;To recap, the supervised learning problem we are trying to solve is this: We are given a set of &lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt; i.i.d. data-points &lt;script type=&quot;math/tex&quot;&gt;(x_i, y_i)&lt;/script&gt; drawn from an unknown distribution &lt;script type=&quot;math/tex&quot;&gt;P(x,y&lt;/script&gt;), 
+where &lt;script type=&quot;math/tex&quot;&gt;x_i&lt;/script&gt; is a vector and &lt;script type=&quot;math/tex&quot;&gt;y_i&lt;/script&gt; is a scalar, and we are trying to learn a function &lt;script type=&quot;math/tex&quot;&gt;f&lt;/script&gt; such that we can correctly predict &lt;script type=&quot;math/tex&quot;&gt;y=f(x)&lt;/script&gt; given a new instance &lt;script type=&quot;math/tex&quot;&gt;x&lt;/script&gt;. 
+How do we determine whether we got a good &lt;script type=&quot;math/tex&quot;&gt;f&lt;/script&gt; or not? One way to gauge that is to assign some penalty for wrong predictions: If we have a &lt;em&gt;cost function&lt;/em&gt; &lt;script type=&quot;math/tex&quot;&gt;l(\hat{y}, y)&lt;/script&gt; which
+is a measure of how much penalty we pay for mis-predicting &lt;script type=&quot;math/tex&quot;&gt;y&lt;/script&gt; as &lt;script type=&quot;math/tex&quot;&gt;\hat{y}=f(x)&lt;/script&gt;, then one criterion would be to find an &lt;script type=&quot;math/tex&quot;&gt;f&lt;/script&gt; that leads to the least expected value
+of that penalty. Formally, we want to find an &lt;script type=&quot;math/tex&quot;&gt;f&lt;/script&gt; such that the following quantity is minimized:&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;E(f) = \int l(f(x), y) dP(x,y)&lt;/script&gt;
+
+&lt;p&gt;Well, that sounds topping, except that we are bogged down by two limitations:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;We can’t possibly investigate all the functions in the world to come up with the one that minimizes this quantity.&lt;/li&gt;
+  &lt;li&gt;We don’t know the distribution &lt;script type=&quot;math/tex&quot;&gt;P(x,y)&lt;/script&gt;; all we have are samples drawn from the distribution.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;So we do what we can - we approximate. We create a pool of candidate functions/function-families to investigate (call that set &lt;script type=&quot;math/tex&quot;&gt;F&lt;/script&gt;), and we approximate the expectation &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt; 
+with sample average &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, called the &lt;em&gt;empirical risk&lt;/em&gt; so that our objecive takes the following form:&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;f^*_F = argmin_{f\in F} E_n(f) = argmin_{f\in F} \frac{1}{n}\sum_{i=1}^n l(f(x_i), y_i)&lt;/script&gt;
+
+&lt;p&gt;One of the most common ways to generate the family of functions is to take up a family of the form &lt;script type=&quot;math/tex&quot;&gt;\{f_w(x)\}&lt;/script&gt;, in which each function is parametrized by some
+weight vector &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt;, e.g. &lt;script type=&quot;math/tex&quot;&gt;\{ w^Tx+b \}&lt;/script&gt;, &lt;script type=&quot;math/tex&quot;&gt;\{(1+\exp(-w^Tx-b))^-1\}&lt;/script&gt;. Assuming our function belongs to such a family, the problem then reduces to just finding 
+the optimum &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt; that minimizes &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, i.e.&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;w^* = argmin_{w} E_n(f_w) = argmin_{w} \frac{1}{n}\sum_{i=1}^n l(f_w(x_i), y_i)&lt;/script&gt;
+
+&lt;p&gt;As we have already seen, gradient descent(GD) starts with an initial estimate &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; for &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;, iterates over the complete data and updates the current estimate on the basis of
+the gradient of the loss function:&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;w_{t+1} = w_t - \gamma \frac{1}{n} \sum_{i=1}^n \bigtriangledown_w l(f_w(x_i), y_i)&lt;/script&gt;
+
+&lt;p&gt;where &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; is the learning rate. Stochastic gradient descent (SGD), on the other hand, updates the current estimate based on a random data point from the dataset on each
+iteration (instead of going over the whole dataset before making an update like GD) :&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;w_{t+1} = w_t - \gamma \bigtriangledown_w l(f_w(x_t), y_t)&lt;/script&gt;
+
+&lt;p&gt;So, intuitively, GD calculates the proper gradient (with all the data available to it) and descends in that direction whereas SGD only approximates the original gradient 
+based on a single data point. So, it stands to reason that GD should lead to a faster convergence, making the best possible movement towards the optimum on each iteration
+whereas SGD will be making noisy, sub-optimal movements, hiccupping around, resulting in a gnarly progress. And theory does support this conjecture: Under some regularity
+assumptions, when &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; is close enough to &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;, and &lt;script type=&quot;math/tex&quot;&gt;\gamma&lt;/script&gt; is reasonable, it takes &lt;script type=&quot;math/tex&quot;&gt;O(\log 1/\rho)&lt;/script&gt; iterations to get to an &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt; that’s in a &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt;
+neighborhood of &lt;script type=&quot;math/tex&quot;&gt;E^*_n&lt;/script&gt; (the &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt; corresponding to &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;), i.e. &lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
+E_n &lt; E^*_n+\rho %]]&gt;&lt;/script&gt;. SGD, on
+the other hand, takes &lt;script type=&quot;math/tex&quot;&gt;O(1/\rho)&lt;/script&gt; iterations to achieve the same. Remember that each iteration of SGD is &lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt; times faster than that of GD, as GD has to go through all
+the datapoints in an iteration while SGD looks at only one. So, while SGD takes &lt;script type=&quot;math/tex&quot;&gt;O(1/\rho)&lt;/script&gt; time to reach the optimum,  GD does so in &lt;script type=&quot;math/tex&quot;&gt;O(n\log 1/\rho)&lt;/script&gt; time.&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt; &lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;GD&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;SGD&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Time per iteration&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;script type=&quot;math/tex&quot;&gt;1&lt;/script&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Iterations to accuracy &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;script type=&quot;math/tex&quot;&gt;\log 1/\rho&lt;/script&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;script type=&quot;math/tex&quot;&gt;1/\rho&lt;/script&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Time to accuracy &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;script type=&quot;math/tex&quot;&gt;n\log 1/\rho&lt;/script&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;&lt;script type=&quot;math/tex&quot;&gt;1/\rho&lt;/script&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;To put these
+numbers into perspective, if we have a million data points (&lt;script type=&quot;math/tex&quot;&gt;n = 10^6&lt;/script&gt;), and &lt;script type=&quot;math/tex&quot;&gt;\rho = 10^{-8}&lt;/script&gt;, GD would reach the optimum ~10 times faster than SGD.
+But guess what… SGD almost always performs better with large datasets in 
+practice&lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;[1]&lt;/a&gt;, reaching to an acceptable solution much faster than GD! So what exactly is happening here? Well, the catch is, in practice, we don’t
+always need &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;, the optimal &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; defined beforehand (in fact it might even be a bad idea to use &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt; as it might not lead to good generalization); 
+all we need is a &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; that’s in the vicinity of &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;. And SGD is extremely good at getting to a &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; close to &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;; alas, once there, 
+it bumps around a lot before reaching 
+&lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;. GD, on the other hand, takes a longer time than SGD to reach the vicinity of &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;, but races to the optimum once it gets there. The question now is, can we
+ get a theoretically sound explanation for this behavior?&lt;/p&gt;
+
+&lt;p&gt;Yes, we can (duh – why else would I be writing this)! We just have to begin at the beginning. 
+Remember what our original goal was - to find an &lt;script type=&quot;math/tex&quot;&gt;f&lt;/script&gt; which minimizes &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt;, the real expectation of loss &lt;script type=&quot;math/tex&quot;&gt;l&lt;/script&gt;. 
+But limited by the inability to explore an unbounded function space with inexhaustible datapoints for endless time, we took recourse to approximations, to minimize &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;
+in lieu of &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt;, on a parametrized set of functions. Let’s go through our approximations, and try to get an estimate of how much error we introduced as we made each
+approximation. We started out to find &lt;script type=&quot;math/tex&quot;&gt;f* = argmin_f E(f)&lt;/script&gt;. Constraining the function space we could explore to &lt;script type=&quot;math/tex&quot;&gt;F&lt;/script&gt; meant we could only hope to find 
+&lt;script type=&quot;math/tex&quot;&gt;f^*_F = argmin_{f \in F} E(f)&lt;/script&gt;. But we don’t have access to &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt; - only an approximation through &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;. So all we can do is get &lt;script type=&quot;math/tex&quot;&gt;f^*_n = argmin_{f\in F} E_n(f)&lt;/script&gt;.
+Now optimization takes time: So we would be happy to get within a &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt; neighborhood of &lt;script type=&quot;math/tex&quot;&gt;E^*_n&lt;/script&gt;, the optimal &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, instead of getting to the exact value of
+&lt;script type=&quot;math/tex&quot;&gt;E^*_n&lt;/script&gt;, so that we ultimately arrive at &lt;script type=&quot;math/tex&quot;&gt;\tilde{f_n}&lt;/script&gt; such that &lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
+E_n(\tilde{f_n}) &lt; E_n(f^*_n) + \rho %]]&gt;&lt;/script&gt;. 
+The error we appropriate through all these approximations, by finding &lt;script type=&quot;math/tex&quot;&gt;\tilde{f_n}&lt;/script&gt; instead of &lt;script type=&quot;math/tex&quot;&gt;f^*&lt;/script&gt; is (using linearity of expectation):&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;% &lt;![CDATA[
+\begin{align*}
+\epsilon &amp; = \mathbb{E}[E(\tilde{f_n})-E(f^*)] \\
+	 &amp; = \mathbb{E}[E(\tilde{f_n})-E(f^*_n)] + \mathbb{E}[E(f^*_n)-E(f^*_F)] + \mathbb{E}[E(f^*_F)-E(f^*)]\\
+	 &amp; = \epsilon_{opt} + \epsilon_{est} + \epsilon_{app}
+\end{align*} %]]&gt;&lt;/script&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;script type=&quot;math/tex&quot;&gt;\epsilon_{app}&lt;/script&gt; is the approximation error, sometimes also called the bias. This arises because we can only explore a limited number of function-families belonging
+to &lt;script type=&quot;math/tex&quot;&gt;F&lt;/script&gt;. If we increase the coverage of &lt;script type=&quot;math/tex&quot;&gt;F&lt;/script&gt;, we will increase the chance of finding a better function to approximate &lt;script type=&quot;math/tex&quot;&gt;f^*&lt;/script&gt;, leading to a lower error.&lt;/li&gt;
+  &lt;li&gt;&lt;script type=&quot;math/tex&quot;&gt;\epsilon_{est}&lt;/script&gt; is the estimation error, sometimes also called the variance. This arises because we can’t explore an infinite number of samples from the distribution. 
+There are two ways we can reduce this error:
+    &lt;ol&gt;
+      &lt;li&gt;Use simpler function families, which have less expressive capabilities and fewer parameters, and we would be able to get a good
+fit even without a lot of data&lt;sup&gt;1&lt;/sup&gt;&lt;/li&gt;
+      &lt;li&gt;Get more data, so that &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt; becomes a better approximation of &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt;.&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;script type=&quot;math/tex&quot;&gt;\epsilon_{opt}&lt;/script&gt; is the optimization error, which can of course be reduced if we run more iterations of the optimization routine.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Now we know that &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{opt} = O(\rho)&lt;/script&gt;, since &lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
+E_n(\tilde{f_n}) &lt; E_n(f^*_n) + \rho %]]&gt;&lt;/script&gt;. Assuming the &lt;a href=&quot;https://en.wikipedia.org/wiki/VC_dimension&quot;&gt;VC dimension&lt;/a&gt; of &lt;script type=&quot;math/tex&quot;&gt;F&lt;/script&gt; is bound by &lt;script type=&quot;math/tex&quot;&gt;K&lt;/script&gt;, and &lt;script type=&quot;math/tex&quot;&gt;n &gt;&gt; K&lt;/script&gt;,
+which is the case when we are dealing with big datasets, we have from learning theory &lt;sup&gt;&lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;2&lt;/a&gt;&lt;a href=&quot;https://en.wikipedia.org/wiki/VC_dimension&quot;&gt;3&lt;/a&gt;&lt;a href=&quot;http://www.cs.cmu.edu/~guestrin/Class/10701-S05/slides/pac-vc.pdf&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;:&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;\epsilon_{est} = O\Big(\sqrt{\frac{K(\log(2n/K)+1)}{n}}\Big) = O\Big(\sqrt{\frac{\log n}{n}}\Big)&lt;/script&gt;
+
+&lt;p&gt;so that:&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;\epsilon = \epsilon_{app} + O\Big(\sqrt{\frac{\log n}{n}}\Big) + O(\rho) \sim \epsilon_{app} + \Big(\frac{\log n}{n}\Big)^\alpha + \rho&lt;/script&gt;
+
+&lt;p&gt;with &lt;script type=&quot;math/tex&quot;&gt;\alpha \in [0.5, 1]&lt;/script&gt;, where the final equivalence is done because it gives a more realistic view of the asymptotic behavior as compared to the pessimistic bound
+of the equality&lt;sup&gt;&lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;[1]&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;Now let’s step back for a moment and recap what we are doing. We saw that due to certain limitations, we have to resort to a few approximations, and we have to make do with a 
+sub-optimal function &lt;script type=&quot;math/tex&quot;&gt;\tilde{f_n}&lt;/script&gt; instead of &lt;script type=&quot;math/tex&quot;&gt;f^*&lt;/script&gt;, which leads to an error &lt;script type=&quot;math/tex&quot;&gt;\epsilon&lt;/script&gt; in our estimation. Our goal is to minimize this, and we can do that in the 
+following ways:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Get a bigger &lt;script type=&quot;math/tex&quot;&gt;F&lt;/script&gt;, explore more functions, reduce &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{app}&lt;/script&gt;. The catch: takes more time to explore more functions&lt;/li&gt;
+  &lt;li&gt;Process more samples, use a bigger &lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt;, reduce &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{est}&lt;/script&gt;. The catch: takes more time to operate on more samples&lt;/li&gt;
+  &lt;li&gt;Use a smaller &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt;, reduce &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{opt}&lt;/script&gt;. The catch: takes more iterations, and consequently time, to get closer to &lt;script type=&quot;math/tex&quot;&gt;E^*&lt;/script&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;In a large scale learning task, time is of the essence, and since all the 3 quantities- &lt;script type=&quot;math/tex&quot;&gt;F, n, \rho&lt;/script&gt; - are variables we can manipulate, and since
+each one of them has a strong influence on the running time, we are faced with a trade-off involving the three quantities, or by proxy, a trade-off on which component
+of the error &lt;script type=&quot;math/tex&quot;&gt;\epsilon&lt;/script&gt; we want to reduce by what degree. Now, in the limiting case, we will have &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{app} \sim \epsilon_{est} \sim \epsilon_{opt}&lt;/script&gt;. Why is that so?
+Because the convergence rate of &lt;script type=&quot;math/tex&quot;&gt;\epsilon&lt;/script&gt; is limited by the convergence rate of its slowest term, and it won’t make sense to spend resources making another term decrease 
+faster. For example, if &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{opt}&lt;/script&gt; is the one bumming around, and the other two are cruising forward with abandon, then we would be better off making &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt; smaller 
+at the expense of a smaller &lt;script type=&quot;math/tex&quot;&gt;F&lt;/script&gt; and &lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt;, to put &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{opt}&lt;/script&gt; on steroids and help it catch up to its fervent compatriots. Since, &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{est} \sim \epsilon_{opt}&lt;/script&gt;,
+&lt;script type=&quot;math/tex&quot;&gt;\epsilon_{opt} \sim \rho&lt;/script&gt;, and 
+&lt;script type=&quot;math/tex&quot;&gt;\epsilon_{est} \sim \Big(\frac{\log n}{n}\Big)^\alpha&lt;/script&gt;, we have &lt;script type=&quot;math/tex&quot;&gt;\rho^{1/\alpha} \sim \frac{\log n}{n}&lt;/script&gt;, i.e. &lt;script type=&quot;math/tex&quot;&gt;n \sim \rho^{-1/\alpha}\log n&lt;/script&gt;. Also,&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;\rho^{1/\alpha} \sim \frac{\log n}{n} \implies \alpha^{-1}\log\rho \sim (\log\log n - \log n) \sim -\log n \implies \log n \sim \log \rho^{-1/\alpha}&lt;/script&gt;
+
+&lt;p&gt;so that 
+&lt;script type=&quot;math/tex&quot;&gt;n \sim \rho^{-1/\alpha}\log \rho^{-1/\alpha}&lt;/script&gt;. Now, from the table, GD takes&lt;/p&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;n\log 1/\rho \sim \alpha^{-1}\rho^{-1/\alpha} \log^2 1/\rho \sim \rho^{-1/\alpha} \log^2 1/\rho&lt;/script&gt;
+
+&lt;p&gt;time to reach accuracy &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt;, whereas SGD does it in &lt;script type=&quot;math/tex&quot;&gt;1/\rho&lt;/script&gt; time. 
+Since in the asymptotic case&lt;sup&gt;2&lt;/sup&gt; &lt;script type=&quot;math/tex&quot;&gt;\epsilon \sim \rho&lt;/script&gt;, GD takes &lt;script type=&quot;math/tex&quot;&gt;\rho^{-1/\alpha} \log^2 1/\rho&lt;/script&gt; time to error &lt;script type=&quot;math/tex&quot;&gt;\epsilon&lt;/script&gt;,
+compared to &lt;script type=&quot;math/tex&quot;&gt;1/\rho&lt;/script&gt; for SGD. Substituting our earlier value of &lt;script type=&quot;math/tex&quot;&gt;\rho = 10^{-8}&lt;/script&gt; and assuming &lt;script type=&quot;math/tex&quot;&gt;\alpha = 1&lt;/script&gt;, SGD would reach the optimum ~100 times faster than GD!
+So even though SGD, with its languid traipsing to the optimal &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, sucks in comparison to GD as an optimizer, it needs far less time to get to a 
+pre-defined expected risk &lt;script type=&quot;math/tex&quot;&gt;\epsilon&lt;/script&gt;, which is what we are usually looking for in practice. Isn’t that interesting!&lt;/p&gt;
+
+&lt;h1 id=&quot;references&quot;&gt;REFERENCES&lt;/h1&gt;
+
+&lt;pre&gt;&lt;code&gt;  1. Stochastic Gradient Descent Tricks, Bottou L
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;sup&gt;1&lt;/sup&gt;&lt;sub&gt;Notice that reducing the expressivity of a function space would lead to an increase in the bias or approx. error: the proverbial bias-variance trade-off. &lt;/sub&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;sup&gt;2&lt;/sup&gt;&lt;sub&gt;Because, &lt;script type=&quot;math/tex&quot;&gt;\epsilon_{app} \sim \epsilon_{est} \sim \epsilon_{opt} \sim \rho \sim \epsilon/3 \sim \epsilon&lt;/script&gt;. Even if we remain conservative and 
+say &lt;script type=&quot;math/tex&quot;&gt;\epsilon \sim 3\rho&lt;/script&gt;, the conclusion still holds. &lt;/sub&gt;&lt;/p&gt;
+
+</description>
+        <pubDate>Wed, 21 Oct 2015 13:31:00 -0700</pubDate>
+        <link>http://yourdomain.com/sgd/ml/crf/2015/10/21/sgd-convergence.html</link>
+        <guid isPermaLink="true">http://yourdomain.com/sgd/ml/crf/2015/10/21/sgd-convergence.html</guid>
+        
+        
+        <category>sgd</category>
+        
+        <category>ml</category>
+        
+        <category>crf</category>
+        
+      </item>
     
       <item>
         <title>On my (Stochastic Gradient) Descent into CRF++</title>
