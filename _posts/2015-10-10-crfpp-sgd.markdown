@@ -8,7 +8,7 @@ categories: sgd ml crf
 
 >"Begin at the beginning," the King said, very gravely, "and go on till you come to the end: then stop."
 
-I was recently reading this [awesome paper][shewchuk-cg] on conjugade gradients (and I think you should too, 
+I was recently reading this [awesome paper][shewchuk-cg] on conjugate gradients (and I think you should too, 
 if you are even barely interested in figuring out what goes on at the heart of all those 
 weight optimization routines), which led me to delve deeper into other optimization algorithms
 and investigate which of them are considered suitable for learning models from large-scale data.
@@ -73,10 +73,11 @@ slower than GD (it takes $$O(1/\rho)$$ time compared to $$O(n \log 1/\rho)$$ for
 to reach within $$\rho$$ bound of $$E_{n,min}$$). However, what it does *really* well is to reach a predefined *expected
 risk($$E$$)* faster than the others. When we set out saying that we are trying to minimize $$E_n$$, we actually lied a bit. What we 
 really wanted to minimize was $$E$$, the *expected risk*, which is independent of $$n$$. $$E_n$$ is just a proxy for $$E$$,
-since we don't know the correct distribution and only have $$(x_i, y_i)$$ pairs as samples from the original distribution. 
+since we don't know the correct distribution and only have access to $$(x_i, y_i)$$ pairs as samples from the original distribution. 
 SGD is pretty good at getting to a predefined $$E$$ faster, because it can process more training examples in the alloted
 time, which reduces the variance. Section 3 of [this paper][botou] gives a nice derivation of the bounds and convergence 
-rates. Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
+rates. Or you could also see my [other post]({% post_url 2015-10-22-sgd-convergence %}) that delves deeper into this.
+Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
 patterns appear in large datasets; a batch algorithm only calculates the gradient after seeing them all. SGD, on the other hand,
 can get the same average gradient over that cluster on seeing it once: so a lot of time is spent calculating gradients in GD
 and less time in updating weights, while it's the other way round with SGD. As an added bonus, since updates in SGD are noisy,
@@ -196,10 +197,11 @@ which leads to a slight drop in accuracy on *conll2000* dataset. Remember that I
 crunching data. I guess I should use a better schedule for rate scaling. Or look into the Hogwild literature to figure something out. May be later: For now, there is still one more thing to try.
 
 #Colluding with the Queen of Hearts
-Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a $$w_0$$ close enough to $$w_{min}$$? Well, most of the time, that's not really the case. 
+Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a $$w_0$$ close enough to $$w_{min}$$? Well, most of the time, 
+that's not really the case with the $$w_0$$ we choose. 
 But as we just saw, SGD does a really good job of bringing $$w$$ close to $$w_{min}$$ in a really short time, though it loiters around once it gets there and takes a long long time to reach 
 the absolute $$w_{min}$$. So, why not combine them both: Run SGD in the beginning, to quickly get the $$w$$ to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
-of both worlds. I have seen a few algorithms doing that before, specifically [Vowpal Wabbit][vw] comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
+of both worlds. I have seen a few algorithms doing that before; specifically [Vowpal Wabbit][vw] comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
 specified number of epochs, and then switches over to LBFGS till convergence or *maxiter* number of steps. The following results are from a Hogwild assisted run:
 
 |---

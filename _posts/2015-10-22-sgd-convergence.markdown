@@ -10,8 +10,8 @@ categories: sgd ml crf
 In my [last post]({% post_url 2015-10-10-crfpp-sgd %}), we saw, or rather took it on faith, 
 that Stochastic Gradient Descent(SGD) is much faster in getting to a reasonable solution compared to Gradient Descent(GD). 
 Instead of investigating the theoretical underpinnings, 
-I took the easier way out and just pointed the reader to the excellent discussion in [this paper][botou]. 
-Also, that post was more focused on the experiments I ran with CRF++, and a detailed theoretical discussion would have been a little out of place.
+I took the easier way out and just directed the reader to the excellent discussion in [this paper][botou]. 
+Furthermore, that post was more focused on the experiments I ran with CRF++, and a detailed theoretical discussion would have been a little out of place there.
 This is an attempt to rectify that, to go through the derivations myself, to get a better understanding of the concepts in the process.
 
 
@@ -38,7 +38,7 @@ f^*_F = argmin_{f\in F} E_n(f) = argmin_{f\in F} \frac{1}{n}\sum_{i=1}^n l(f(x_i
 $$
 
 One of the most common ways to generate the family of functions is to take up a family of the form $$\{f_w(x)\}$$, in which each function is parametrized by some
-weight vector $$w$$, e.g. $$\{ w^Tx+b \}$$, $$\{(1+\exp(-w^Tx-b))^-1\}$$. Assuming our function belongs to such a family, the problem then reduces to just finding 
+weight vector $$w$$, e.g. $$\{ w^Tx+b \}$$, $$\{(1+\exp(-w^Tx-b))^{-1}\}$$. Assuming our function belongs to such a family, the problem then reduces to just finding 
 the optimum $$w^*$$ that minimizes $$E_n$$, i.e.
 
 $$
@@ -77,7 +77,7 @@ the datapoints in an iteration while SGD looks at only one. So, while SGD takes 
 To put these
 numbers into perspective, if we have a million data points ($$n = 10^6$$), and $$\rho = 10^{-8}$$, GD would reach the optimum ~10 times faster than SGD.
 But guess what... SGD almost always performs better with large datasets in 
-practice[[1]][botou], reaching to an acceptable solution much faster than GD! So what exactly is happening here? Well, the catch is, in practice, we don't
+practice[[1]][botou], reaching an acceptable solution much faster than GD! So what exactly is happening here? Well, the catch is, in practice, we don't
 always need $$w^*$$, the optimal $$w$$ defined beforehand (in fact it might even be a bad idea to use $$w^*$$ as it might not lead to good generalization); 
 all we need is a $$w$$ that's in the vicinity of $$w^*$$. And SGD is extremely good at getting to a $$w$$ close to $$w^*$$; alas, once there, 
 it bumps around a lot before reaching 
