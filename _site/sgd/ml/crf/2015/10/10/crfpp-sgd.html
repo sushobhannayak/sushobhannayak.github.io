@@ -68,7 +68,7 @@
   <p>“Begin at the beginning,” the King said, very gravely, “and go on till you come to the end: then stop.”</p>
 </blockquote>
 
-<p>I was recently reading this <a href="https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf">awesome paper</a> on conjugade gradients (and I think you should too, 
+<p>I was recently reading this <a href="https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf">awesome paper</a> on conjugate gradients (and I think you should too, 
 if you are even barely interested in figuring out what goes on at the heart of all those 
 weight optimization routines), which led me to delve deeper into other optimization algorithms
 and investigate which of them are considered suitable for learning models from large-scale data.
@@ -127,10 +127,11 @@ slower than GD (it takes <script type="math/tex">O(1/\rho)</script> time compare
 to reach within <script type="math/tex">\rho</script> bound of <script type="math/tex">E_{n,min}</script>). However, what it does <em>really</em> well is to reach a predefined <em>expected
 risk(<script type="math/tex">E</script>)</em> faster than the others. When we set out saying that we are trying to minimize <script type="math/tex">E_n</script>, we actually lied a bit. What we 
 really wanted to minimize was <script type="math/tex">E</script>, the <em>expected risk</em>, which is independent of <script type="math/tex">n</script>. <script type="math/tex">E_n</script> is just a proxy for <script type="math/tex">E</script>,
-since we don’t know the correct distribution and only have <script type="math/tex">(x_i, y_i)</script> pairs as samples from the original distribution. 
+since we don’t know the correct distribution and only have access to <script type="math/tex">(x_i, y_i)</script> pairs as samples from the original distribution. 
 SGD is pretty good at getting to a predefined <script type="math/tex">E</script> faster, because it can process more training examples in the alloted
 time, which reduces the variance. Section 3 of <a href="http://research.microsoft.com/pubs/192769/tricks-2012.pdf">this paper</a> gives a nice derivation of the bounds and convergence 
-rates. Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
+rates. Or you could also see my <a href="http://sushobhannayak.github.io/sgd/ml/crf/2015/10/23/sgd-convergence.html">other post</a> that delves deeper into this.
+Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
 patterns appear in large datasets; a batch algorithm only calculates the gradient after seeing them all. SGD, on the other hand,
 can get the same average gradient over that cluster on seeing it once: so a lot of time is spent calculating gradients in GD
 and less time in updating weights, while it’s the other way round with SGD. As an added bonus, since updates in SGD are noisy,
@@ -337,10 +338,11 @@ which leads to a slight drop in accuracy on <em>conll2000</em> dataset. Remember
 crunching data. I guess I should use a better schedule for rate scaling. Or look into the Hogwild literature to figure something out. May be later: For now, there is still one more thing to try.</p>
 
 <h1 id="colluding-with-the-queen-of-hearts">Colluding with the Queen of Hearts</h1>
-<p>Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a <script type="math/tex">w_0</script> close enough to <script type="math/tex">w_{min}</script>? Well, most of the time, that’s not really the case. 
+<p>Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a <script type="math/tex">w_0</script> close enough to <script type="math/tex">w_{min}</script>? Well, most of the time, 
+that’s not really the case with the <script type="math/tex">w_0</script> we choose. 
 But as we just saw, SGD does a really good job of bringing <script type="math/tex">w</script> close to <script type="math/tex">w_{min}</script> in a really short time, though it loiters around once it gets there and takes a long long time to reach 
 the absolute <script type="math/tex">w_{min}</script>. So, why not combine them both: Run SGD in the beginning, to quickly get the <script type="math/tex">w</script> to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
-of both worlds. I have seen a few algorithms doing that before, specifically <a href="http://hunch.net/~vw/">Vowpal Wabbit</a> comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
+of both worlds. I have seen a few algorithms doing that before; specifically <a href="http://hunch.net/~vw/">Vowpal Wabbit</a> comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
 specified number of epochs, and then switches over to LBFGS till convergence or <em>maxiter</em> number of steps. The following results are from a Hogwild assisted run:</p>
 
 <table rules="groups">

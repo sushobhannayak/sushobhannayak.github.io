@@ -7,7 +7,7 @@ categories: sgd ml crf
 ---
 >Keep digging. 
 
-In my [last post]({% post_url 2015-10-10-crfpp-sgd %}), we saw, or rather took it on faith, 
+In my [last post][first-post], we saw, or rather took it on faith, 
 that Stochastic Gradient Descent(SGD) is much faster in getting to a reasonable solution compared to Gradient Descent(GD). 
 Instead of investigating the theoretical underpinnings, 
 I took the easier way out and just directed the reader to the excellent discussion in [this paper][botou]. 
@@ -174,3 +174,4 @@ say $$\epsilon \sim 3\rho$$, the conclusion still holds. </sub>
 [botou]:	    http://research.microsoft.com/pubs/192769/tricks-2012.pdf
 [vcdim]: 	    https://en.wikipedia.org/wiki/VC_dimension
 [vcdim2]:	    http://www.cs.cmu.edu/~guestrin/Class/10701-S05/slides/pac-vc.pdf
+[first-post]:	    http://sushobhannayak.github.io/sgd/ml/crf/2015/10/10/crfpp-sgd.html

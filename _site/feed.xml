@@ -6,8 +6,8 @@
 </description>
     <link>http://yourdomain.com/</link>
     <atom:link href="http://yourdomain.com/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 23 Oct 2015 00:05:17 -0700</pubDate>
-    <lastBuildDate>Fri, 23 Oct 2015 00:05:17 -0700</lastBuildDate>
+    <pubDate>Mon, 11 Jan 2016 13:10:59 -0800</pubDate>
+    <lastBuildDate>Mon, 11 Jan 2016 13:10:59 -0800</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
     
       <item>
@@ -16,11 +16,11 @@
   &lt;p&gt;Keep digging.&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;p&gt;In my &lt;a href=&quot;/sgd/ml/crf/2015/10/10/crfpp-sgd.html&quot;&gt;last post&lt;/a&gt;, we saw, or rather took it on faith, 
+&lt;p&gt;In my &lt;a href=&quot;http://sushobhannayak.github.io/sgd/ml/crf/2015/10/10/crfpp-sgd.html&quot;&gt;last post&lt;/a&gt;, we saw, or rather took it on faith, 
 that Stochastic Gradient Descent(SGD) is much faster in getting to a reasonable solution compared to Gradient Descent(GD). 
 Instead of investigating the theoretical underpinnings, 
-I took the easier way out and just pointed the reader to the excellent discussion in &lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;this paper&lt;/a&gt;. 
-Also, that post was more focused on the experiments I ran with CRF++, and a detailed theoretical discussion would have been a little out of place.
+I took the easier way out and just directed the reader to the excellent discussion in &lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;this paper&lt;/a&gt;. 
+Furthermore, that post was more focused on the experiments I ran with CRF++, and a detailed theoretical discussion would have been a little out of place there.
 This is an attempt to rectify that, to go through the derivations myself, to get a better understanding of the concepts in the process.&lt;/p&gt;
 
 &lt;p&gt;To recap, the supervised learning problem we are trying to solve is this: We are given a set of &lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt; i.i.d. data-points &lt;script type=&quot;math/tex&quot;&gt;(x_i, y_i)&lt;/script&gt; drawn from an unknown distribution &lt;script type=&quot;math/tex&quot;&gt;P(x,y&lt;/script&gt;), 
@@ -44,7 +44,7 @@ with sample average &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, 
 &lt;script type=&quot;math/tex; mode=display&quot;&gt;f^*_F = argmin_{f\in F} E_n(f) = argmin_{f\in F} \frac{1}{n}\sum_{i=1}^n l(f(x_i), y_i)&lt;/script&gt;
 
 &lt;p&gt;One of the most common ways to generate the family of functions is to take up a family of the form &lt;script type=&quot;math/tex&quot;&gt;\{f_w(x)\}&lt;/script&gt;, in which each function is parametrized by some
-weight vector &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt;, e.g. &lt;script type=&quot;math/tex&quot;&gt;\{ w^Tx+b \}&lt;/script&gt;, &lt;script type=&quot;math/tex&quot;&gt;\{(1+\exp(-w^Tx-b))^-1\}&lt;/script&gt;. Assuming our function belongs to such a family, the problem then reduces to just finding 
+weight vector &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt;, e.g. &lt;script type=&quot;math/tex&quot;&gt;\{ w^Tx+b \}&lt;/script&gt;, &lt;script type=&quot;math/tex&quot;&gt;\{(1+\exp(-w^Tx-b))^{-1}\}&lt;/script&gt;. Assuming our function belongs to such a family, the problem then reduces to just finding 
 the optimum &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt; that minimizes &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, i.e.&lt;/p&gt;
 
 &lt;script type=&quot;math/tex; mode=display&quot;&gt;w^* = argmin_{w} E_n(f_w) = argmin_{w} \frac{1}{n}\sum_{i=1}^n l(f_w(x_i), y_i)&lt;/script&gt;
@@ -98,7 +98,7 @@ the datapoints in an iteration while SGD looks at only one. So, while SGD takes 
 &lt;p&gt;To put these
 numbers into perspective, if we have a million data points (&lt;script type=&quot;math/tex&quot;&gt;n = 10^6&lt;/script&gt;), and &lt;script type=&quot;math/tex&quot;&gt;\rho = 10^{-8}&lt;/script&gt;, GD would reach the optimum ~10 times faster than SGD.
 But guess what… SGD almost always performs better with large datasets in 
-practice&lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;[1]&lt;/a&gt;, reaching to an acceptable solution much faster than GD! So what exactly is happening here? Well, the catch is, in practice, we don’t
+practice&lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;[1]&lt;/a&gt;, reaching an acceptable solution much faster than GD! So what exactly is happening here? Well, the catch is, in practice, we don’t
 always need &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;, the optimal &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; defined beforehand (in fact it might even be a bad idea to use &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt; as it might not lead to good generalization); 
 all we need is a &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; that’s in the vicinity of &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;. And SGD is extremely good at getting to a &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; close to &lt;script type=&quot;math/tex&quot;&gt;w^*&lt;/script&gt;; alas, once there, 
 it bumps around a lot before reaching 
@@ -212,7 +212,7 @@ say &lt;script type=&quot;math/tex&quot;&gt;\epsilon \sim 3\rho&lt;/script&gt;, 
   &lt;p&gt;“Begin at the beginning,” the King said, very gravely, “and go on till you come to the end: then stop.”&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;p&gt;I was recently reading this &lt;a href=&quot;https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf&quot;&gt;awesome paper&lt;/a&gt; on conjugade gradients (and I think you should too, 
+&lt;p&gt;I was recently reading this &lt;a href=&quot;https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf&quot;&gt;awesome paper&lt;/a&gt; on conjugate gradients (and I think you should too, 
 if you are even barely interested in figuring out what goes on at the heart of all those 
 weight optimization routines), which led me to delve deeper into other optimization algorithms
 and investigate which of them are considered suitable for learning models from large-scale data.
@@ -271,10 +271,11 @@ slower than GD (it takes &lt;script type=&quot;math/tex&quot;&gt;O(1/\rho)&lt;/s
 to reach within &lt;script type=&quot;math/tex&quot;&gt;\rho&lt;/script&gt; bound of &lt;script type=&quot;math/tex&quot;&gt;E_{n,min}&lt;/script&gt;). However, what it does &lt;em&gt;really&lt;/em&gt; well is to reach a predefined &lt;em&gt;expected
 risk(&lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt;)&lt;/em&gt; faster than the others. When we set out saying that we are trying to minimize &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt;, we actually lied a bit. What we 
 really wanted to minimize was &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt;, the &lt;em&gt;expected risk&lt;/em&gt;, which is independent of &lt;script type=&quot;math/tex&quot;&gt;n&lt;/script&gt;. &lt;script type=&quot;math/tex&quot;&gt;E_n&lt;/script&gt; is just a proxy for &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt;,
-since we don’t know the correct distribution and only have &lt;script type=&quot;math/tex&quot;&gt;(x_i, y_i)&lt;/script&gt; pairs as samples from the original distribution. 
+since we don’t know the correct distribution and only have access to &lt;script type=&quot;math/tex&quot;&gt;(x_i, y_i)&lt;/script&gt; pairs as samples from the original distribution. 
 SGD is pretty good at getting to a predefined &lt;script type=&quot;math/tex&quot;&gt;E&lt;/script&gt; faster, because it can process more training examples in the alloted
 time, which reduces the variance. Section 3 of &lt;a href=&quot;http://research.microsoft.com/pubs/192769/tricks-2012.pdf&quot;&gt;this paper&lt;/a&gt; gives a nice derivation of the bounds and convergence 
-rates. Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
+rates. Or you could also see my &lt;a href=&quot;http://sushobhannayak.github.io/sgd/ml/crf/2015/10/23/sgd-convergence.html&quot;&gt;other post&lt;/a&gt; that delves deeper into this.
+Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
 patterns appear in large datasets; a batch algorithm only calculates the gradient after seeing them all. SGD, on the other hand,
 can get the same average gradient over that cluster on seeing it once: so a lot of time is spent calculating gradients in GD
 and less time in updating weights, while it’s the other way round with SGD. As an added bonus, since updates in SGD are noisy,
@@ -481,10 +482,11 @@ which leads to a slight drop in accuracy on &lt;em&gt;conll2000&lt;/em&gt; datas
 crunching data. I guess I should use a better schedule for rate scaling. Or look into the Hogwild literature to figure something out. May be later: For now, there is still one more thing to try.&lt;/p&gt;
 
 &lt;h1 id=&quot;colluding-with-the-queen-of-hearts&quot;&gt;Colluding with the Queen of Hearts&lt;/h1&gt;
-&lt;p&gt;Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; close enough to &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt;? Well, most of the time, that’s not really the case. 
+&lt;p&gt;Remember how earlier we talked about the faster convergence of LBFGS to the minima if we start with a &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; close enough to &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt;? Well, most of the time, 
+that’s not really the case with the &lt;script type=&quot;math/tex&quot;&gt;w_0&lt;/script&gt; we choose. 
 But as we just saw, SGD does a really good job of bringing &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; close to &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt; in a really short time, though it loiters around once it gets there and takes a long long time to reach 
 the absolute &lt;script type=&quot;math/tex&quot;&gt;w_{min}&lt;/script&gt;. So, why not combine them both: Run SGD in the beginning, to quickly get the &lt;script type=&quot;math/tex&quot;&gt;w&lt;/script&gt; to a suitable range, and then let LBFGS run its magic, thereby gaining from the best 
-of both worlds. I have seen a few algorithms doing that before, specifically &lt;a href=&quot;http://hunch.net/~vw/&quot;&gt;Vowpal Wabbit&lt;/a&gt; comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
+of both worlds. I have seen a few algorithms doing that before; specifically &lt;a href=&quot;http://hunch.net/~vw/&quot;&gt;Vowpal Wabbit&lt;/a&gt; comes to mind. So I set in a routine in CRF++ which runs one of the SGD versions first for a 
 specified number of epochs, and then switches over to LBFGS till convergence or &lt;em&gt;maxiter&lt;/em&gt; number of steps. The following results are from a Hogwild assisted run:&lt;/p&gt;
 
 &lt;table rules=&quot;groups&quot;&gt;

@@ -76,7 +76,7 @@ really wanted to minimize was $$E$$, the *expected risk*, which is independent o
 since we don't know the correct distribution and only have access to $$(x_i, y_i)$$ pairs as samples from the original distribution. 
 SGD is pretty good at getting to a predefined $$E$$ faster, because it can process more training examples in the alloted
 time, which reduces the variance. Section 3 of [this paper][botou] gives a nice derivation of the bounds and convergence 
-rates. Or you could also see my [other post]({% post_url 2015-10-22-sgd-convergence %}) that delves deeper into this.
+rates. Or you could also see my [other post][second-post] that delves deeper into this.
 Intuitively, it boils down to the following: it makes use of the redundancy in the dataset. Similar clusters of
 patterns appear in large datasets; a batch algorithm only calculates the gradient after seeing them all. SGD, on the other hand,
 can get the same average gradient over that cluster on seeing it once: so a lot of time is spent calculating gradients in GD
@@ -274,3 +274,4 @@ accuracy numbers for LBFGS compared to SGD(100 epochs) might suggest so.</sub>
 [agarwal]:	    http://arxiv.org/pdf/1104.5525.pdf
 [zinkevich]:	    http://www.research.rutgers.edu/~lihong/pub/Zinkevich11Parallelized.pdf
 [l1]: 		    http://www.aclweb.org/anthology/P09-1054
+[second-post]:	    http://sushobhannayak.github.io/sgd/ml/crf/2015/10/23/sgd-convergence.html
